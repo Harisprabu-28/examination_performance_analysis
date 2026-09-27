@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}My Performance Analysis{% endblock %}
+{% block page_title %}My Examination Performance & Growth Trend{% endblock %}
+{% block page_subtitle %}Comprehensive score tracking across CIA 1, CIA 2, and Model Examination{% endblock %}
+
+{% block content %}
+<!-- Overall Performance Banner & Trend Status -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card border-start border-4 border-primary">
+      <div class="stat-icon icon-primary"><i class="fa-solid fa-1"></i></div>
+      <div class="stat-info">
+        <h3>{{ trend.cia1_perc or 'N/A' }}{% if trend.cia1_perc %}%{% endif %}</h3>
+        <p>CIA 1 Percentage</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card border-start border-4 border-info">
+      <div class="stat-icon icon-info"><i class="fa-solid fa-2"></i></div>
+      <div class="stat-info">
+        <h3>{{ trend.cia2_perc or 'Not Uploaded' }}{% if trend.cia2_perc %}%{% endif %}</h3>
+        <p>CIA 2 Percentage</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card border-start border-4 border-success">
+      <div class="stat-icon icon-success"><i class="fa-solid fa-m"></i></div>
+      <div class="stat-info">
+        <h3>{{ trend.model_perc or 'Not Uploaded' }}{% if trend.model_perc %}%{% endif %}</h3>
+        <p>Model Exam Percentage</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Performance Status Badge -->
+<div class="custom-card mb-4">
+  <div class="custom-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h5 class="fw-bold mb-1 text-dark">Overall Academic Performance Standing</h5>
+      <p class="text-muted small mb-0">Calculated dynamically from your actual uploaded examination records</p>
+    </div>
+    <div>
+      {% if trend.status == 'Improving' %}
+        <span class="badge bg-success fs-5 px-4 py-2 rounded-pill">
+          <i class="fa-solid fa-arrow-trend-up me-2"></i> Performance Status: Improving
+        </span>
+      {% elif trend.status == 'Declining' %}
+        <span class="badge bg-danger fs-5 px-4 py-2 rounded-pill">
+          <i class="fa-solid fa-arrow-trend-down me-2"></i> Performance Status: Declining
+        </span>
+      {% else %}
+        <span class="badge bg-primary fs-5 px-4 py-2 rounded-pill">
+          <i class="fa-solid fa-minus me-2"></i> Performance Status: Stable
+        </span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Subject-Wise Multi-Exam Comparison Table -->
+<div class="custom-card mb-4">
+  <div class="custom-card-header">
+    <h5 class="card-title mb-0"><i class="fa-solid fa-table-cells me-2 text-primary"></i> Subject-Wise Score Progression</h5>
+  </div>
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Subject Name</th>
+            <th>CIA 1 Marks</th>
+            <th>CIA 2 Marks</th>
+            <th>Model Exam Marks</th>
+            <th>Progress Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sub in subject_scores %}
+            <tr>
+              <td><strong>{{ sub.name }}</strong></td>
+              <td><span class="fw-bold text-primary">{{ sub.cia1 }}</span></td>
+              <td>
+                {% if sub.cia2 != 'N/A' %}
+                  <span class="fw-bold text-info">{{ sub.cia2 }}</span>
+                {% else %}
+                  <span class="text-muted small">Not Uploaded</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if sub.model != 'N/A' %}
+                  <span class="fw-bold text-success">{{ sub.model }}</span>
+                {% else %}
+                  <span class="text-muted small">Not Uploaded</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if sub.diff > 0 %}
+                  <span class="badge bg-success"><i class="fa-solid fa-plus me-1"></i> +{{ sub.diff }} (Improved)</span>
+                {% elif sub.diff < 0 %}
+                  <span class="badge bg-danger"><i class="fa-solid fa-minus me-1"></i> {{ sub.diff }} (Dropped)</span>
+                {% else %}
+                  <span class="badge bg-secondary">Consistent</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

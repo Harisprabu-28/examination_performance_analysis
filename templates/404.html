@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Page Not Found{% endblock %}
+{% block page_title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div class="custom-card text-center py-5">
+  <div class="py-4">
+    <div class="display-1 fw-bold text-primary mb-3">404</div>
+    <h3 class="fw-bold text-dark mb-2">Academic Resource Not Found</h3>
+    <p class="text-muted col-md-6 mx-auto mb-4">
+      The page or examination record you requested does not exist or has been relocated within the institutional portal.
+    </p>
+    <a href="{% if session.get('role') == 'student' %}{{ url_for('student_dashboard') }}{% else %}{{ url_for('dashboard') }}{% endif %}" 
+       class="btn-primary-custom px-4 py-2">
+      <i class="fa-solid fa-house me-1"></i> Return to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

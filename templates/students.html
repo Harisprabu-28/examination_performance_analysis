@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Students Roster{% endblock %}
+{% block page_title %}Student Management Directory{% endblock %}
+{% block page_subtitle %}Manage enrolled student profiles, academic departments, and individual records{% endblock %}
+
+{% block content %}
+<div class="custom-card">
+  <div class="custom-card-header flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <h5 class="card-title"><i class="fa-solid fa-users text-primary"></i> Registered Students ({{ students|length }})</h5>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      <div class="input-group input-group-sm" style="width: 250px;">
+        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+        <input type="text" id="tableSearchInput" class="form-control border-start-0" placeholder="Search by name, reg no...">
+      </div>
+      
+      <a href="{{ url_for('add_student') }}" class="btn-primary-custom btn-sm">
+        <i class="fa-solid fa-user-plus"></i> Add Student
+      </a>
+    </div>
+  </div>
+
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom" id="dataTable">
+        <thead>
+          <tr>
+            <th>Register No</th>
+            <th>Student Name</th>
+            <th>Department</th>
+            <th>Year & Sem</th>
+            <th>Section</th>
+            <th>Contact Email</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+            <tr>
+              <td><strong class="text-primary font-monospace">{{ s.register_number }}</strong></td>
+              <td>
+                <div class="fw-bold">{{ s.name }}</div>
+                <small class="text-muted"><i class="fa-solid fa-phone me-1" style="font-size: 0.7rem;"></i>{{ s.phone or 'N/A' }}</small>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ s.department }}</span></td>
+              <td>{{ s.year }} <span class="text-muted">({{ s.semester }})</span></td>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border px-2">{{ s.section }}</span></td>
+              <td>{{ s.email }}</td>
+              <td class="text-end pe-4">
+                <div class="d-inline-flex gap-1">
+                  <!-- View Profile / Exam History -->
+                  <a href="{{ url_for('student_detail', student_id=s.id) }}" class="btn-action" title="View Profile & Marks">
+                    <i class="fa-solid fa-eye text-primary"></i>
+                  </a>
+                  <!-- Add Marks -->
+                  <a href="{{ url_for('add_marks', student_id=s.id) }}" class="btn-action" title="Add Exam Marks">
+                    <i class="fa-solid fa-plus text-success"></i>
+                  </a>
+                  <!-- Edit Student -->
+                  <a href="{{ url_for('edit_student', student_id=s.id) }}" class="btn-action" title="Edit Student">
+                    <i class="fa-solid fa-pen-to-square text-warning"></i>
+                  </a>
+                  <!-- Download Report -->
+                  <a href="{{ url_for('download_report', student_id=s.id) }}" class="btn-action" title="Download Performance Report">
+                    <i class="fa-solid fa-file-pdf text-danger"></i>
+                  </a>
+                  <!-- Delete Modal Trigger -->
+                  <button type="button" class="btn-action delete" title="Delete Student" 
+                          onclick="confirmDelete('{{ s.id }}', '{{ s.name }}', '{{ s.register_number }}')">
+                    <i class="fa-solid fa-trash-can text-danger"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-user-slash fs-1 d-block mb-3 opacity-50"></i>
+                No student records found. Click <strong>Add Student</strong> to register students.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i> Confirm Student Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-4">
+        <p class="text-muted mb-2">Are you sure you want to permanently delete this student and all associated examination marks?</p>
+        <div class="p-3 bg-light rounded-3 border">
+          <div class="fw-bold text-dark" id="delStudentName">Student Name</div>
+          <div class="small text-muted font-monospace" id="delStudentReg">REG2024000</div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteForm" method="POST" action="">
+          <button type="submit" class="btn btn-danger rounded-3 px-4">
+            <i class="fa-solid fa-trash me-1"></i> Delete Student
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function confirmDelete(studentId, name, regNo) {
+    document.getElementById('delStudentName').textContent = name;
+    document.getElementById('delStudentReg').textContent = regNo;
+    document.getElementById('deleteForm').action = "/students/delete/" + studentId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

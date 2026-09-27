@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Examination Performance Reports{% endblock %}
+{% block page_title %}Official Performance Reports Center{% endblock %}
+{% block page_subtitle %}Generate, preview, and download institutional PDF performance analysis reports{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Left: Select Student & Exam -->
+  <div class="col-lg-4">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title"><i class="fa-solid fa-file-pdf text-danger"></i> Generate Report</h5>
+      </div>
+      <div class="custom-card-body">
+        <form method="GET" action="{{ url_for('reports_hub') }}">
+          <div class="mb-3">
+            <label class="form-label-custom">Select Student</label>
+            <select name="student_id" class="form-select-custom" onchange="this.form.submit()">
+              <option value="" disabled {% if not selected_student %}selected{% endif %}>-- Choose a student --</option>
+              {% for s in students %}
+                <option value="{{ s.id }}" {% if selected_student and selected_student.id == s.id %}selected{% endif %}>
+                  {{ s.register_number }} - {{ s.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+
+        {% if selected_student and marks %}
+          <div class="mt-4 pt-3 border-top">
+            <label class="form-label-custom">Available Exam Reports</label>
+            <div class="list-group">
+              {% for m in marks %}
+                <a href="{{ url_for('download_report', student_id=selected_student.id, mark_id=m.id) }}" 
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2">
+                  <div>
+                    <div class="fw-bold small">{{ m.exam_name }}</div>
+                    <small class="text-muted">{{ m.academic_year }} • {{ m.percentage }}% ({{ m.grade }})</small>
+                  </div>
+                  <i class="fa-solid fa-download text-danger"></i>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Report Live Document Preview -->
+  <div class="col-lg-8">
+    {% if selected_student and latest_mark %}
+      <div class="custom-card border-2 border-primary">
+        <div class="custom-card-header bg-light d-flex justify-content-between align-items-center">
+          <h5 class="card-title"><i class="fa-solid fa-file-lines text-primary"></i> Report Document Preview</h5>
+          <a href="{{ url_for('download_report', student_id=selected_student.id, mark_id=latest_mark.id) }}" class="btn-primary-custom btn-sm">
+            <i class="fa-solid fa-download"></i> Download Official PDF
+          </a>
+        </div>
+
+        <div class="custom-card-body p-4 bg-white" style="border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+          <!-- Document Header -->
+          <div class="text-center pb-3 border-bottom mb-4">
+            <h4 class="fw-bold text-dark mb-1">INSTITUTE OF HIGHER EDUCATION & TECHNOLOGY</h4>
+            <h6 class="text-primary fw-bold mb-0">OFFICIAL EXAMINATION PERFORMANCE & ML ANALYSIS REPORT</h6>
+            <small class="text-muted">Academic Term: {{ latest_mark.academic_year }} • {{ latest_mark.exam_name }}</small>
+          </div>
+
+          <!-- Student Information Block -->
+          <div class="p-3 bg-light rounded-3 border mb-4">
+            <div class="row g-2 small">
+              <div class="col-md-6"><strong>Student Name:</strong> {{ selected_student.name }}</div>
+              <div class="col-md-6"><strong>Register Number:</strong> <span class="font-monospace text-primary fw-bold">{{ selected_student.register_number }}</span></div>
+              <div class="col-md-6"><strong>Department:</strong> {{ selected_student.department }}</div>
+              <div class="col-md-6"><strong>Year / Sem / Sec:</strong> {{ selected_student.year }} / {{ selected_student.semester }} ({{ selected_student.section }})</div>
+            </div>
+          </div>
+
+          <!-- Subject Marks Breakdown -->
+          <h6 class="fw-bold text-dark mb-2 small text-uppercase"><i class="fa-solid fa-table me-1 text-primary"></i> Course Marks Breakdown</h6>
+          <div class="table-responsive mb-4">
+            <table class="table table-bordered table-sm text-center align-middle" style="font-size: 0.85rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>#</th>
+                  <th class="text-start">Course Title</th>
+                  <th>Max</th>
+                  <th>Pass</th>
+                  <th>Scored</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% set subs = [
+                  ('1', 'Mathematics', 100, 40, latest_mark.mathematics),
+                  ('2', 'English', 100, 40, latest_mark.english),
+                  ('3', 'Science', 100, 40, latest_mark.science),
+                  ('4', 'Computer Science', 100, 40, latest_mark.computer_science),
+                  ('5', 'Database Management', 100, 40, latest_mark.database_management),
+                  ('6', 'Web Technology', 100, 40, latest_mark.web_technology)
+                ] %}
+                {% for num, name, mx, ps, sc in subs %}
+                  <tr>
+                    <td>{{ num }}</td>
+                    <td class="text-start fw-semibold">{{ name }}</td>
+                    <td>{{ mx }}</td>
+                    <td>{{ ps }}</td>
+                    <td><strong>{{ sc }}</strong></td>
+                    <td>
+                      <span class="badge {% if sc >= 40 %}bg-success{% else %}bg-danger{% endif %}">
+                        {% if sc >= 40 %}PASS{% else %}FAIL{% endif %}
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+                <tr class="table-secondary fw-bold">
+                  <td colspan="2" class="text-start">TOTAL MARKS: {{ latest_mark.total_marks }} / 600</td>
+                  <td colspan="2">AVERAGE: {{ latest_mark.average }}</td>
+                  <td colspan="2">PERCENTAGE: {{ "%.2f"|format(latest_mark.percentage) }}% ({{ latest_mark.grade }})</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Result Status -->
+          <div class="p-3 rounded-3 mb-4 {% if latest_mark.result == 'PASS' %}bg-success bg-opacity-10 border border-success border-opacity-25 text-success{% else %}bg-danger bg-opacity-10 border border-danger border-opacity-25 text-danger{% endif %} text-center">
+            <h5 class="fw-bold mb-0">OVERALL EXAMINATION RESULT: {{ latest_mark.result }} (Grade {{ latest_mark.grade }})</h5>
+          </div>
+
+          <!-- ML Performance Standing -->
+          <div class="p-3 bg-light rounded-3 border mb-4">
+            <h6 class="fw-bold text-dark mb-2 small text-uppercase"><i class="fa-solid fa-brain text-primary me-1"></i> Machine Learning Classification (Random Forest)</h6>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Predicted Academic Standing:</span>
+              <span class="badge-custom badge-{{ ml_standing.prediction|lower|replace(' ', '-') }} fs-6 px-3 py-1">{{ ml_standing.prediction }}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center small text-muted">
+              <span>Model Confidence Probability:</span>
+              <strong class="text-primary">{{ ml_standing.confidence }}%</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="custom-card text-center p-5">
+        <div class="text-muted fs-1 mb-3"><i class="fa-solid fa-file-circle-question opacity-50"></i></div>
+        <h5 class="fw-bold">Select a Student to Preview Report</h5>
+        <p class="text-muted small">Choose a student from the dropdown menu on the left to generate their official examination report.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

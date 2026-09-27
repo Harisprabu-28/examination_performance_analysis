@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}ML Performance Predictions{% endblock %}
+{% block page_title %}Machine Learning Performance Prediction{% endblock %}
+{% block page_subtitle %}Predict academic performance standing and risk factors using Random Forest Classification{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+  <!-- Left Form: Student & Marks Selection -->
+  <div class="col-lg-5">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title"><i class="fa-solid fa-microchip text-primary"></i> Run ML Model Inference</h5>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Random Forest</span>
+      </div>
+
+      <div class="custom-card-body">
+        <form id="predictionForm" onsubmit="executePrediction(event)">
+          <div class="mb-3">
+            <label class="form-label-custom">Select Student <span class="text-danger">*</span></label>
+            <select id="pred_student_select" class="form-select-custom" onchange="loadStudentMarksForPrediction(this.value)" required>
+              <option value="" disabled selected>-- Choose a registered student --</option>
+              {% for s in students %}
+                <option value="{{ s.id }}">{{ s.register_number }} - {{ s.name }} ({{ s.department }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label-custom">Available Examination Record</label>
+            <select id="pred_exam_select" class="form-select-custom" onchange="applySelectedExamMarks(this.value)">
+              <option value="">Select a student first</option>
+            </select>
+          </div>
+
+          <h6 class="text-uppercase text-muted fw-bold mb-3 mt-4" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-sliders me-1"></i> Feature Inputs (Course Marks /100)
+          </h6>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">Mathematics</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_math" class="form-control form-control-sm" value="75" required>
+            </div>
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">English</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_eng" class="form-control form-control-sm" value="80" required>
+            </div>
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">Science</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_sci" class="form-control form-control-sm" value="78" required>
+            </div>
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">Computer Science</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_cs" class="form-control form-control-sm" value="85" required>
+            </div>
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">Database Management</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_db" class="form-control form-control-sm" value="82" required>
+            </div>
+            <div class="col-6">
+              <label class="small text-muted fw-semibold">Web Technology</label>
+              <input type="number" step="0.5" min="0" max="100" id="p_web" class="form-control form-control-sm" value="88" required>
+            </div>
+          </div>
+
+          <button type="submit" id="btnPredict" class="btn-primary-custom w-100 justify-content-center py-2">
+            <i class="fa-solid fa-brain"></i> Predict Student Performance
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: ML Prediction Output Container -->
+  <div class="col-lg-7">
+    <!-- Initial Placeholder State -->
+    <div id="predPlaceholder" class="custom-card h-100 d-flex flex-column align-items-center justify-content-center p-5 text-center">
+      <div class="mb-3 p-4 rounded-circle bg-light border text-primary fs-1">
+        <i class="fa-solid fa-robot"></i>
+      </div>
+      <h5 class="fw-bold text-dark">Ready for ML Performance Prediction</h5>
+      <p class="text-muted small col-md-8">
+        Select a student or adjust course features on the left, then click <strong>Predict Student Performance</strong> to generate Random Forest classification.
+      </p>
+    </div>
+
+    <!-- Active Result State (Hidden Initially) -->
+    <div id="predResultBox" class="prediction-box" style="display: none;">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <span class="badge bg-primary bg-opacity-25 text-white border border-light border-opacity-25 px-3 py-1 mb-2">
+            <i class="fa-solid fa-circle-check text-info me-1"></i> ML Prediction Output
+          </span>
+          <h4 class="fw-bold text-white mb-0" id="resStudentName">Student Name</h4>
+          <small class="text-light opacity-75 font-monospace" id="resStudentReg">Register Number</small>
+        </div>
+        <div class="text-end">
+          <small class="text-light opacity-75 d-block">Prediction Date</small>
+          <span class="fw-semibold text-white small" id="resDate">Just Now</span>
+        </div>
+      <div class="mb-3 p-2 rounded bg-dark bg-opacity-50 text-white small border border-light border-opacity-10" id="resUsedExamsBox">
+        <i class="fa-solid fa-database text-info me-1"></i> <strong>Data Sources Used:</strong> <span id="resUsedExamsText" class="font-monospace text-light">✓ CIA 1</span>
+      </div>
+
+      <div class="p-3 rounded-3 bg-white bg-opacity-10 border border-white border-opacity-10 mb-4">
+        <div class="row align-items-center">
+          <div class="col-md-6 border-end border-white border-opacity-10">
+            <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.75rem;">Predicted Academic Tier</small>
+            <div id="resCategoryBadge" class="prediction-badge-lg badge-good">Good</div>
+            <div class="text-white-50 small mt-1">Mean Score: <strong class="text-white" id="resPercentage">80.5%</strong></div>
+          </div>
+          <div class="col-md-6 ps-md-4 mt-3 mt-md-0">
+            <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.75rem;">Model Confidence Probability</small>
+            <div class="d-flex align-items-baseline gap-2 mt-1">
+              <span class="fs-2 fw-bold text-info" id="resConfidence">87.5%</span>
+              <small class="text-white-50">Reliability Score</small>
+            </div>
+            <div class="confidence-bar-container">
+              <div class="confidence-bar-fill" id="resConfidenceBar" style="width: 87.5%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Probability Distribution by Class -->
+      <div class="mb-4">
+        <small class="text-white-50 text-uppercase fw-bold d-block mb-2" style="font-size: 0.7rem;">Class Probability Breakdown</small>
+        <div id="resProbBreakdown" class="d-flex flex-column gap-1 small">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Actionable Academic Guidance -->
+      <div>
+        <h6 class="text-white fw-bold mb-2 small text-uppercase" style="letter-spacing: 0.5px;">
+          <i class="fa-solid fa-lightbulb text-warning me-1"></i> Tailored AI Academic Recommendations
+        </h6>
+        <div id="resRecommendations" class="d-flex flex-column gap-2">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Prediction History Table -->
+<div class="row g-4">
+  <div class="col-lg-12">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title"><i class="fa-solid fa-clock-rotate-left text-primary"></i> Machine Learning Prediction History Log</h5>
+        <span class="badge bg-light text-secondary border">Stored in Database</span>
+      </div>
+      <div class="custom-card-body p-0">
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Predicted Standing</th>
+                <th>Model Confidence</th>
+                <th>Model Version</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              {% for p in predictions_history %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td><strong class="text-primary font-monospace">{{ p.register_number }}</strong></td>
+                  <td>{{ p.student_name }}</td>
+                  <td><span class="badge bg-light text-dark border">{{ p.department }}</span></td>
+                  <td>
+                    <span class="badge-custom badge-{{ p.prediction | lower | replace(' ', '-') }}">
+                      {{ p.prediction }}
+                    </span>
+                  </td>
+                  <td><strong class="text-info">{{ p.confidence }}%</strong></td>
+                  <td><code class="small text-muted">{{ p.model_version }}</code></td>
+                  <td><small class="text-muted">{{ p.created_at }}</small></td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="8" class="text-center py-4 text-muted">No historical predictions logged yet. Run a prediction above!</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStudentExams = [];
+
+async function loadStudentMarksForPrediction(studentId) {
+  if (!studentId) return;
+  try {
+    const res = await fetch(`/api/student-marks/${studentId}`);
+    const data = await res.json();
+    currentStudentExams = data.marks || [];
+
+    const examSelect = document.getElementById('pred_exam_select');
+    examSelect.innerHTML = '';
+
+    if (currentStudentExams.length === 0) {
+      examSelect.innerHTML = '<option value="">No recorded exams (Enter manual marks below)</option>';
+    } else {
+      currentStudentExams.forEach((exam, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${exam.exam_name} (${exam.academic_year}) - ${exam.percentage}%`;
+        examSelect.appendChild(opt);
+      });
+      applySelectedExamMarks(0);
+    }
+  } catch (err) {
+    console.error('Error fetching marks:', err);
+  }
+}
+
+function applySelectedExamMarks(examIdx) {
+  if (examIdx === "" || !currentStudentExams[examIdx]) return;
+  const exam = currentStudentExams[examIdx];
+  document.getElementById('p_math').value = exam.mathematics;
+  document.getElementById('p_eng').value = exam.english;
+  document.getElementById('p_sci').value = exam.science;
+  document.getElementById('p_cs').value = exam.computer_science;
+  document.getElementById('p_db').value = exam.database_management;
+  document.getElementById('p_web').value = exam.web_technology;
+}
+
+async function executePrediction(event) {
+  event.preventDefault();
+
+  const studentSelect = document.getElementById('pred_student_select');
+  const studentId = studentSelect.value;
+  const studentText = studentSelect.options[studentSelect.selectedIndex].text;
+  const parts = studentText.split(' - ');
+  const regNo = parts[0] || 'REG2024000';
+  const namePart = parts[1] ? parts[1].split(' (')[0] : 'Student';
+
+  const payload = {
+    student_id: studentId,
+    mathematics: parseFloat(document.getElementById('p_math').value),
+    english: parseFloat(document.getElementById('p_eng').value),
+    science: parseFloat(document.getElementById('p_sci').value),
+    computer_science: parseFloat(document.getElementById('p_cs').value),
+    database_management: parseFloat(document.getElementById('p_db').value),
+    web_technology: parseFloat(document.getElementById('p_web').value)
+  };
+
+  const btn = document.getElementById('btnPredict');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running Random Forest Model...';
+
+  try {
+    const res = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-brain"></i> Predict Student Performance';
+
+    if (data.status === 'success') {
+      document.getElementById('predPlaceholder').style.display = 'none';
+      const resultBox = document.getElementById('predResultBox');
+      resultBox.style.display = 'block';
+
+      document.getElementById('resStudentName').textContent = namePart;
+      document.getElementById('resStudentReg').textContent = regNo;
+      document.getElementById('resDate').textContent = new Date().toLocaleTimeString();
+      if (data.used_exams_summary) {
+        document.getElementById('resUsedExamsText').textContent = data.used_exams_summary;
+      }
+
+      const badge = document.getElementById('resCategoryBadge');
+      badge.textContent = data.prediction;
+      const catClass = data.prediction.toLowerCase().replace(' ', '-');
+      badge.className = `prediction-badge-lg badge-${catClass}`;
+
+      document.getElementById('resPercentage').textContent = (data.percentage || 0).toFixed(2) + '%';
+      document.getElementById('resConfidence').textContent = data.confidence.toFixed(1) + '%';
+      document.getElementById('resConfidenceBar').style.width = data.confidence + '%';
+
+      // Probabilities
+      const probContainer = document.getElementById('resProbBreakdown');
+      probContainer.innerHTML = '';
+      if (data.class_probabilities) {
+        for (const [cls, prob] of Object.entries(data.class_probabilities)) {
+          const row = document.createElement('div');
+          row.className = 'd-flex align-items-center justify-content-between text-white-50';
+          row.innerHTML = `
+            <span>${cls}</span>
+            <div class="d-flex align-items-center gap-2" style="width: 140px;">
+              <div class="progress flex-grow-1" style="height: 4px; background: rgba(255,255,255,0.1);">
+                <div class="progress-bar bg-info" style="width: ${prob}%;"></div>
+              </div>
+              <span class="text-white font-monospace" style="font-size: 0.75rem;">${prob}%</span>
+            </div>
+          `;
+          probContainer.appendChild(row);
+        }
+      }
+
+      // Recommendations
+      const recContainer = document.getElementById('resRecommendations');
+      recContainer.innerHTML = '';
+      if (data.recommendations && data.recommendations.length > 0) {
+        data.recommendations.forEach(rec => {
+          const div = document.createElement('div');
+          div.className = 'p-2 rounded bg-white bg-opacity-10 text-white small border-start border-3 border-info';
+          div.innerHTML = `<i class="fa-solid fa-angle-right me-1 text-info"></i> ${rec}`;
+          recContainer.appendChild(div);
+        });
+      }
+    } else {
+      alert('Error predicting performance: ' + (data.message || 'Unknown error'));
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-brain"></i> Predict Student Performance';
+    console.error('Prediction request failed:', err);
+    alert('Prediction error. Check console for details.');
+  }
+}
+</script>
+{% endblock %}

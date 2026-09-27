@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mark %}Edit Marks{% else %}Enter Examination Marks{% endif %}{% endblock %}
+{% block page_title %}{% if mark %}Edit Examination Record{% else %}Enter Examination Scores{% endif %}{% endblock %}
+{% block page_subtitle %}Record subject-wise marks with real-time auto-calculation of total, percentage, grade, and pass/fail status{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Left: Form Entry -->
+  <div class="col-lg-8">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title">
+          <i class="fa-solid {% if mark %}fa-pen-to-square text-warning{% else %}fa-file-circle-plus text-primary{% endif %}"></i>
+          {% if mark %}Modify Marks Record #{{ mark.id }}{% else %}New Examination Mark Entry{% endif %}
+        </h5>
+        <a href="{{ url_for('marks_list') }}" class="btn btn-sm btn-outline-custom">
+          <i class="fa-solid fa-arrow-left me-1"></i> Back to Marks
+        </a>
+      </div>
+
+      <div class="custom-card-body p-4">
+        <form action="{% if mark %}{{ url_for('edit_marks', mark_id=mark.id) }}{% else %}{{ url_for('add_marks') }}{% endif %}" method="POST">
+          <!-- Student Selection & Exam Details -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-12">
+              <label class="form-label-custom">Select Student <span class="text-danger">*</span></label>
+              {% if mark %}
+                <input type="hidden" name="student_id" value="{{ mark.student_id }}">
+                <input type="text" class="form-control-custom bg-light" value="{{ mark.student_name }} ({{ mark.register_number }}) - {{ mark.department }}" disabled>
+              {% else %}
+                <select name="student_id" class="form-select-custom" required>
+                  <option value="" disabled selected>-- Select a registered student --</option>
+                  {% for s in students %}
+                    <option value="{{ s.id }}" {% if selected_student_id|int == s.id %}selected{% endif %}>
+                      {{ s.register_number }} - {{ s.name }} ({{ s.department }})
+                    </option>
+                  {% endfor %}
+                </select>
+              {% endif %}
+            </div>
+
+            <div class="col-md-7">
+              <label class="form-label-custom">Examination Name <span class="text-danger">*</span></label>
+              <input type="text" name="exam_name" class="form-control-custom" 
+                     placeholder="e.g. Semester Final Examination 2025-26" 
+                     value="{{ mark.exam_name if mark else 'Semester Final Examination 2025-26' }}" required>
+            </div>
+
+            <div class="col-md-5">
+              <label class="form-label-custom">Academic Year <span class="text-danger">*</span></label>
+              <input type="text" name="academic_year" class="form-control-custom" 
+                     placeholder="e.g. 2025-2026" 
+                     value="{{ mark.academic_year if mark else '2025-2026' }}" required>
+            </div>
+          </div>
+
+          <!-- Subject Marks Grid -->
+          <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-list-check me-1"></i> Subject Course Marks (Max 100 per subject, Pass: 40)
+          </h6>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label-custom">Mathematics <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="mathematics" id="math_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.mathematics if mark else '75' }}" required>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">English <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="english" id="eng_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.english if mark else '80' }}" required>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Science <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="science" id="sci_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.science if mark else '78' }}" required>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Computer Science <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="computer_science" id="cs_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.computer_science if mark else '85' }}" required>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Database Management <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="database_management" id="db_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.database_management if mark else '82' }}" required>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Web Technology <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.5" min="0" max="100" name="web_technology" id="web_input" 
+                       class="form-control-custom" placeholder="0 - 100" 
+                       value="{{ mark.web_technology if mark else '88' }}" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+            <a href="{{ url_for('marks_list') }}" class="btn btn-outline-custom">Cancel</a>
+            <button type="submit" class="btn-primary-custom px-4">
+              <i class="fa-solid fa-floppy-disk"></i> {% if mark %}Update Marks Record{% else %}Save Examination Marks{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Real-time Live Calculation Panel -->
+  <div class="col-lg-4">
+    <div class="custom-card sticky-top" style="top: 90px;">
+      <div class="custom-card-header bg-light">
+        <h5 class="card-title"><i class="fa-solid fa-calculator text-primary"></i> Live Auto-Calculation</h5>
+        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Instant</span>
+      </div>
+
+      <div class="custom-card-body">
+        <p class="text-muted small mb-3">Metrics automatically computed in real time according to institutional standards.</p>
+
+        <div class="p-3 bg-light rounded-3 border mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-semibold">Total Marks:</span>
+            <span class="fs-5 fw-bold text-dark"><span id="calc_total">0.0</span> <small class="text-muted fs-6">/ 600</small></span>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-semibold">Average Score:</span>
+            <span class="fs-6 fw-bold text-dark"><span id="calc_avg">0.0</span> <small class="text-muted">/ 100</small></span>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-semibold">Percentage:</span>
+            <span class="fs-5 fw-bold text-primary" id="calc_perc">0.0%</span>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-semibold">Awarded Grade:</span>
+            <span class="badge bg-primary fs-6 px-3 py-1" id="calc_grade">F</span>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <span class="text-muted small fw-semibold">Result Status:</span>
+            <span id="calc_result" class="badge-custom badge-pass">PASS</span>
+          </div>
+        </div>
+
+        <!-- Grading Rubric Legend -->
+        <div class="small">
+          <div class="fw-bold text-muted mb-2" style="font-size: 0.75rem;">GRADING CRITERIA</div>
+          <div class="row g-1 text-center font-monospace" style="font-size: 0.7rem;">
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">90-100: A+</span></div>
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">80-89: A</span></div>
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">70-79: B+</span></div>
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">60-69: B</span></div>
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">50-59: C</span></div>
+            <div class="col-4"><span class="badge bg-light text-dark border w-100">40-49: D</span></div>
+          </div>
+          <div class="mt-2 text-danger" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-circle-exclamation me-1"></i> Result is FAIL if any individual subject score is &lt; 40.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

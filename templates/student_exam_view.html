@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}My {{ exam_label }} Marks{% endblock %}
+{% block page_title %}My {{ exam_label }} Examination Statement{% endblock %}
+{% block page_subtitle %}Official individual score transcript for {{ exam_label }}{% endblock %}
+
+{% block content %}
+{% if mark %}
+<!-- Student Exam Summary Card -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-primary"><i class="fa-solid fa-graduation-cap"></i></div>
+      <div class="stat-info">
+        <h3>{{ mark.total_marks }} / 600</h3>
+        <p>Total Marks Obtained</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-info"><i class="fa-solid fa-percent"></i></div>
+      <div class="stat-info">
+        <h3>{{ mark.percentage }}%</h3>
+        <p>Percentage Score</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-success"><i class="fa-solid fa-award"></i></div>
+      <div class="stat-info">
+        <h3>{{ mark.grade }}</h3>
+        <p>Letter Grade</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon {{ 'icon-success' if mark.result == 'PASS' else 'icon-danger' }}">
+        <i class="fa-solid {{ 'fa-circle-check' if mark.result == 'PASS' else 'fa-circle-xmark' }}"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ mark.result }}</h3>
+        <p>Final Standing</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed Subject Scores Table -->
+<div class="custom-card mb-4">
+  <div class="custom-card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0"><i class="fa-solid fa-list-ol text-primary me-2"></i> {{ exam_label }} Course Subject Breakdown</h5>
+    <span class="badge bg-primary bg-opacity-10 text-primary border">{{ mark.academic_year }}</span>
+  </div>
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Subject Name</th>
+            <th>Maximum Marks</th>
+            <th>Passing Benchmark</th>
+            <th>Marks Obtained</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>MAT601</code></td>
+            <td><strong>Mathematics</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.mathematics }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.mathematics >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.mathematics >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>ENG602</code></td>
+            <td><strong>English</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.english }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.english >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.english >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>SCI603</code></td>
+            <td><strong>Science</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.science }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.science >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.science >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>CSE604</code></td>
+            <td><strong>Computer Science</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.computer_science }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.computer_science >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.computer_science >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>DBMS605</code></td>
+            <td><strong>Database Management System</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.database_management }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.database_management >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.database_management >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>WEB606</code></td>
+            <td><strong>Web Technologies</strong></td>
+            <td>100</td>
+            <td>40</td>
+            <td><strong class="fs-6 text-primary">{{ mark.web_technology }}</strong></td>
+            <td>
+              <span class="badge {{ 'bg-success' if mark.web_technology >= 40 else 'bg-danger' }}">
+                {{ 'PASS' if mark.web_technology >= 40 else 'FAIL' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<!-- Placeholder alert when exam is not yet available -->
+<div class="custom-card p-5 text-center my-4">
+  <div class="mb-3 p-4 rounded-circle bg-light border text-secondary d-inline-block fs-1">
+    <i class="fa-solid fa-folder-open"></i>
+  </div>
+  <h4 class="fw-bold text-dark">{{ exam_label }} Marks Not Available Yet</h4>
+  <p class="text-muted col-md-6 mx-auto">
+    The faculty has not yet uploaded examination marks for <strong>{{ exam_label }}</strong>. 
+    Please check back after official announcement.
+  </p>
+  <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary rounded-pill px-4 mt-2">
+    <i class="fa-solid fa-arrow-left me-1"></i> Return to Student Dashboard
+  </a>
+</div>
+{% endif %}
+{% endblock %}

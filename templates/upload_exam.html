@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Upload {{ exam_label }} Marks{% endblock %}
+{% block page_title %}Upload {{ exam_label }} Examination Marks{% endblock %}
+{% block page_subtitle %}Upload Excel spreadsheet containing student {{ exam_label }} subject marks{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+  <div class="col-lg-12">
+    <div class="custom-card">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <i class="fa-solid fa-file-excel text-success me-2"></i> Select {{ exam_label }} Excel File
+        </h5>
+        <span class="badge bg-primary bg-opacity-10 text-primary border px-3 py-1">Exam Type: {{ exam_label }}</span>
+      </div>
+
+      <div class="custom-card-body">
+        <form id="excelUploadForm" enctype="multipart/form-data">
+          <input type="hidden" id="exam_type_input" name="exam_type" value="{{ exam_type }}">
+          <div class="row align-items-end g-3">
+            <div class="col-md-7">
+              <label class="form-label-custom">Select Excel File (.xlsx, .xls) <span class="text-danger">*</span></label>
+              <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx, .xls" required>
+              <small class="text-muted mt-1 d-block">
+                Supports column variations: <strong>Register Number</strong> (or Reg No), <strong>Student Name</strong>, 
+                and subject marks (<strong>Mathematics</strong>, <strong>English</strong>, <strong>Science</strong>, <strong>Computer Science</strong>, <strong>Database Management</strong>, <strong>Web Technology</strong>).
+              </small>
+            </div>
+            <div class="col-md-5">
+              <button type="button" id="btnPreview" onclick="previewExcelFile()" class="btn-primary-custom w-100 justify-content-center py-2">
+                <i class="fa-solid fa-magnifying-glass-chart me-1"></i> Preview & Verify Excel Data
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload / Preview Result Section (Initially Hidden) -->
+<div id="previewContainer" style="display: none;">
+  <!-- Metric Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-icon icon-primary"><i class="fa-solid fa-list-check"></i></div>
+        <div class="stat-info">
+          <h3 id="statTotalRows">0</h3>
+          <p>Total Rows in File</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-icon icon-success"><i class="fa-solid fa-user-check"></i></div>
+        <div class="stat-info">
+          <h3 id="statMatched">0</h3>
+          <p>Matched Students</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-icon icon-warning"><i class="fa-solid fa-user-slash"></i></div>
+        <div class="stat-info">
+          <h3 id="statUnmatched">0</h3>
+          <p>Unmatched Register Nos</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-icon icon-danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="stat-info">
+          <h3 id="statInvalid">0</h3>
+          <p>Invalid / Skipped Rows</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unmatched Register Numbers Alert (If any) -->
+  <div id="unmatchedAlert" class="alert alert-warning rounded-3 shadow-sm border-0 mb-4" style="display: none;">
+    <h6 class="fw-bold mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i> Register Numbers Not Found in Database:</h6>
+    <p class="mb-0 small" id="unmatchedListText"></p>
+  </div>
+
+  <!-- Data Preview Table -->
+  <div class="custom-card mb-4">
+    <div class="custom-card-header d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0"><i class="fa-solid fa-table me-2 text-primary"></i> Data Import Preview Table</h5>
+      <button type="button" id="btnConfirmImport" onclick="confirmImport()" class="btn btn-success rounded-pill px-4 fw-bold">
+        <i class="fa-solid fa-cloud-arrow-up me-1"></i> Confirm & Import {{ exam_label }} Marks
+      </button>
+    </div>
+    <div class="custom-card-body p-0">
+      <div class="table-responsive">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Register No</th>
+              <th>Student Name</th>
+              <th>Mathematics</th>
+              <th>English</th>
+              <th>Science</th>
+              <th>Computer Science</th>
+              <th>Database Management</th>
+              <th>Web Technology</th>
+              <th>Total</th>
+              <th>Average</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="previewTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let parsedUploadData = null;
+
+async function previewExcelFile() {
+  const fileInput = document.getElementById('excel_file');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alert("Please select an Excel file to upload.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('excel_file', fileInput.files[0]);
+  formData.append('exam_type', document.getElementById('exam_type_input').value);
+
+  const btn = document.getElementById('btnPreview');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Reading & Validating Excel...';
+
+  try {
+    const res = await fetch('/api/upload/preview', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart me-1"></i> Preview & Verify Excel Data';
+
+    if (data.status === 'success') {
+      parsedUploadData = data;
+      document.getElementById('previewContainer').style.display = 'block';
+
+      document.getElementById('statTotalRows').textContent = data.summary.total_rows;
+      document.getElementById('statMatched').textContent = data.summary.matched_count;
+      document.getElementById('statUnmatched').textContent = data.summary.unmatched_count;
+      document.getElementById('statInvalid').textContent = data.summary.invalid_count;
+
+      const unmatchedAlert = document.getElementById('unmatchedAlert');
+      if (data.summary.unmatched_count > 0) {
+        unmatchedAlert.style.display = 'block';
+        document.getElementById('unmatchedListText').textContent = data.summary.unmatched_register_numbers.join(', ');
+      } else {
+        unmatchedAlert.style.display = 'none';
+      }
+
+      const tbody = document.getElementById('previewTableBody');
+      tbody.innerHTML = '';
+
+      data.preview_rows.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        if (row.is_matched) {
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td><strong class="font-monospace text-primary">${row.register_number}</strong></td>
+            <td>${row.student_name}</td>
+            <td>${row.mathematics}</td>
+            <td>${row.english}</td>
+            <td>${row.science}</td>
+            <td>${row.computer_science}</td>
+            <td>${row.database_management}</td>
+            <td>${row.web_technology}</td>
+            <td><strong>${row.total_marks}</strong></td>
+            <td>${row.average}%</td>
+            <td><span class="badge bg-success">Match Found</span></td>
+          `;
+        } else {
+          tr.className = 'table-warning';
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td><strong class="font-monospace text-danger">${row.register_number}</strong></td>
+            <td>${row.student_name}</td>
+            <td colspan="8" class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> Student not found in database (Skipped)</td>
+            <td><span class="badge bg-danger">Not Found</span></td>
+          `;
+        }
+        tbody.appendChild(tr);
+      });
+    } else {
+      alert("Excel Preview Error: " + (data.message || 'Unknown error'));
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart me-1"></i> Preview & Verify Excel Data';
+    console.error("Preview failed:", err);
+    alert("Failed to parse Excel file. Check file structure.");
+  }
+}
+
+async function confirmImport() {
+  if (!parsedUploadData || !parsedUploadData.preview_rows || parsedUploadData.preview_rows.length === 0) {
+    alert("No valid data to import.");
+    return;
+  }
+
+  const btn = document.getElementById('btnConfirmImport');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Importing to Database...';
+
+  try {
+    const res = await fetch('/api/upload/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        exam_type: parsedUploadData.exam_type,
+        rows: parsedUploadData.preview_rows
+      })
+    });
+
+    const data = await res.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-1"></i> Confirm & Import {{ exam_label }} Marks';
+
+    if (data.status === 'success') {
+      alert(`Success! Imported/Updated ${data.imported_count} student marks for {{ exam_label }}. CIA 1 marks remain intact.`);
+      window.location.href = data.redirect_url || '/dashboard';
+    } else {
+      alert("Import Failed: " + (data.message || 'Unknown error'));
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-1"></i> Confirm & Import {{ exam_label }} Marks';
+    console.error("Import failed:", err);
+    alert("Failed to store examination marks.");
+  }
+}
+</script>
+{% endblock %}

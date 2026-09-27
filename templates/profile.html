@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile{% endblock %}
+{% block page_title %}User Account Profile{% endblock %}
+{% block page_subtitle %}Manage your account credentials and contact information{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title"><i class="fa-solid fa-id-card text-primary"></i> Account Profile Details</h5>
+        <span class="badge bg-light text-secondary border">{{ session.get('role')|capitalize }} Role</span>
+      </div>
+
+      <div class="custom-card-body p-4">
+        <form action="{{ url_for('profile') }}" method="POST">
+          <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+            <div class="user-avatar" style="width: 56px; height: 56px; font-size: 1.25rem;">
+              {% if session.get('role') == 'admin' %}AD{% else %}ST{% endif %}
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0">{{ user.name if session.get('role') == 'student' else user.username }}</h5>
+              <small class="text-muted">
+                {% if session.get('role') == 'student' %}
+                  {{ user.register_number }} • {{ user.department }}
+                {% else %}
+                  System Administrator • Full Access
+                {% endif %}
+              </small>
+            </div>
+          </div>
+
+          {% if session.get('role') == 'student' %}
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label-custom">Register Number</label>
+                <input type="text" class="form-control-custom bg-light font-monospace" value="{{ user.register_number }}" disabled>
+                <small class="text-muted" style="font-size: 0.75rem;">Register number cannot be modified.</small>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-custom">Full Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control-custom" value="{{ user.name }}" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-custom">Email Address <span class="text-danger">*</span></label>
+                <input type="email" name="email" class="form-control-custom" value="{{ user.email }}" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-custom">Phone Number</label>
+                <input type="tel" name="phone" class="form-control-custom" value="{{ user.phone or '' }}">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-custom">Department</label>
+                <input type="text" class="form-control-custom bg-light" value="{{ user.department }}" disabled>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-custom">Class & Section</label>
+                <input type="text" class="form-control-custom bg-light" value="{{ user.year }} - {{ user.semester }} (Sec {{ user.section }})" disabled>
+              </div>
+            </div>
+          {% else %}
+            <!-- Admin Profile Form -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-12">
+                <label class="form-label-custom">Admin Username</label>
+                <input type="text" class="form-control-custom bg-light" value="{{ user.username }}" disabled>
+              </div>
+            </div>
+          {% endif %}
+
+          <h6 class="text-uppercase text-muted fw-bold mb-3 mt-4" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-lock me-1"></i> Change Account Password
+          </h6>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label-custom">New Password</label>
+              <input type="password" name="new_password" class="form-control-custom" placeholder="Leave blank to keep unchanged">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label-custom">Confirm New Password</label>
+              <input type="password" name="confirm_password" class="form-control-custom" placeholder="Re-enter new password">
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+            <button type="submit" class="btn-primary-custom px-4">
+              <i class="fa-solid fa-floppy-disk"></i> Update Profile
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

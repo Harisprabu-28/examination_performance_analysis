@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam_label }} Performance{% endblock %}
+{% block page_title %}{{ exam_label }} Performance & Marks Roster{% endblock %}
+{% block page_subtitle %}Comprehensive score tracking, class metrics, and subject analytics for {{ exam_label }}{% endblock %}
+
+{% block content %}
+<!-- Exam Metrics Overview Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-primary"><i class="fa-solid fa-users"></i></div>
+      <div class="stat-info">
+        <h3>{{ total_count }}</h3>
+        <p>Total Students Recorded</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-info"><i class="fa-solid fa-calculator"></i></div>
+      <div class="stat-info">
+        <h3>{{ avg_percentage }}%</h3>
+        <p>{{ exam_label }} Class Average</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-success"><i class="fa-solid fa-trophy"></i></div>
+      <div class="stat-info">
+        <h3>{{ highest_score }}%</h3>
+        <p>Highest Mark Score</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon icon-warning"><i class="fa-solid fa-chart-line-down"></i></div>
+      <div class="stat-info">
+        <h3>{{ lowest_score }}%</h3>
+        <p>Lowest Mark Score</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subject Averages Banner -->
+<div class="custom-card mb-4">
+  <div class="custom-card-header">
+    <h5 class="card-title"><i class="fa-solid fa-chart-column text-primary me-2"></i> {{ exam_label }} Subject-Wise Averages</h5>
+  </div>
+  <div class="custom-card-body">
+    <div class="row g-3">
+      {% for sub in subject_averages %}
+        <div class="col-md-2 col-6 text-center">
+          <div class="p-3 bg-light rounded-3 border">
+            <small class="text-muted fw-bold d-block text-truncate mb-1">{{ sub.name }}</small>
+            <h4 class="fw-bold text-primary mb-0">{{ sub.avg }}</h4>
+            <small class="text-muted" style="font-size: 0.7rem;">/ 100</small>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Main Marks Roster Table -->
+<div class="custom-card">
+  <div class="custom-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h5 class="card-title mb-0">
+      <i class="fa-solid fa-table me-2 text-primary"></i> {{ exam_label }} Student Marks List
+    </h5>
+    <div class="d-flex align-items-center gap-2">
+      <input type="text" id="tableSearchInput" class="form-control form-control-sm" placeholder="Search by name or reg no..." style="max-width: 240px;">
+      {% if exam_type != 'CIA1' %}
+        <a href="{{ url_for('upload_exam_page', exam_type=exam_type | lower) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+          <i class="fa-solid fa-cloud-arrow-up me-1"></i> Re-Upload {{ exam_label }}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom" id="dataTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Register No</th>
+            <th>Student Name</th>
+            <th>Department</th>
+            <th>Maths</th>
+            <th>English</th>
+            <th>Science</th>
+            <th>CS</th>
+            <th>DBMS</th>
+            <th>Web Tech</th>
+            <th>Total</th>
+            <th>Percentage</th>
+            <th>Grade</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in marks %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><strong class="text-primary font-monospace">{{ m.register_number }}</strong></td>
+              <td><strong>{{ m.student_name }}</strong></td>
+              <td><span class="badge bg-light text-dark border">{{ m.department }}</span></td>
+              <td>{{ m.mathematics }}</td>
+              <td>{{ m.english }}</td>
+              <td>{{ m.science }}</td>
+              <td>{{ m.computer_science }}</td>
+              <td>{{ m.database_management }}</td>
+              <td>{{ m.web_technology }}</td>
+              <td><strong>{{ m.total_marks }}</strong></td>
+              <td><strong class="text-dark">{{ m.percentage }}%</strong></td>
+              <td>
+                <span class="badge-custom badge-grade badge-{{ m.grade | lower | replace('+', '-plus') }}">
+                  {{ m.grade }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-custom {{ 'badge-pass' if m.result == 'PASS' else 'badge-fail' }}">
+                  {{ m.result }}
+                </span>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="14" class="text-center py-4 text-muted">
+                No examination records found for {{ exam_label }}.
+                {% if exam_type != 'CIA1' %}
+                  <br><a href="{{ url_for('upload_exam_page', exam_type=exam_type | lower) }}" class="btn btn-sm btn-primary mt-2">Upload {{ exam_label }} Excel File</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

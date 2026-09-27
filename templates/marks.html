@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Marks Management{% endblock %}
+{% block page_title %}Examination Marks Records{% endblock %}
+{% block page_subtitle %}Manage examination scores, calculate aggregate performance, and view grade distributions{% endblock %}
+
+{% block content %}
+<div class="custom-card">
+  <div class="custom-card-header flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <h5 class="card-title"><i class="fa-solid fa-file-signature text-primary"></i> Examination Records ({{ marks|length }})</h5>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      <div class="input-group input-group-sm" style="width: 250px;">
+        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+        <input type="text" id="tableSearchInput" class="form-control border-start-0" placeholder="Search student, exam...">
+      </div>
+      
+      <a href="{{ url_for('add_marks') }}" class="btn-primary-custom btn-sm">
+        <i class="fa-solid fa-plus"></i> Enter Marks
+      </a>
+    </div>
+  </div>
+
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom" id="dataTable">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Exam & Year</th>
+            <th>Subjects (M | E | S | CS | DB | W)</th>
+            <th>Total / 600</th>
+            <th>Percentage</th>
+            <th>Grade</th>
+            <th>Result</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in marks %}
+            <tr>
+              <td>
+                <div class="fw-bold text-dark">{{ m.student_name }}</div>
+                <div class="small font-monospace text-primary">{{ m.register_number }}</div>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ m.exam_name }}</div>
+                <small class="text-muted">{{ m.academic_year }}</small>
+              </td>
+              <td>
+                <div class="d-flex gap-1" style="font-size: 0.75rem;">
+                  <span class="badge bg-light text-dark border" title="Mathematics: {{ m.mathematics }}">{{ m.mathematics|round|int }}</span>
+                  <span class="badge bg-light text-dark border" title="English: {{ m.english }}">{{ m.english|round|int }}</span>
+                  <span class="badge bg-light text-dark border" title="Science: {{ m.science }}">{{ m.science|round|int }}</span>
+                  <span class="badge bg-light text-dark border" title="Computer Science: {{ m.computer_science }}">{{ m.computer_science|round|int }}</span>
+                  <span class="badge bg-light text-dark border" title="Database Management: {{ m.database_management }}">{{ m.database_management|round|int }}</span>
+                  <span class="badge bg-light text-dark border" title="Web Technology: {{ m.web_technology }}">{{ m.web_technology|round|int }}</span>
+                </div>
+              </td>
+              <td><strong>{{ m.total_marks }}</strong></td>
+              <td><strong class="{% if m.percentage >= 70 %}text-success{% elif m.percentage >= 50 %}text-primary{% else %}text-danger{% endif %}">{{ "%.2f"|format(m.percentage) }}%</strong></td>
+              <td><span class="grade-pill {{ m.grade|replace('+', '-plus') }}">{{ m.grade }}</span></td>
+              <td>
+                <span class="badge-custom {% if m.result == 'PASS' %}badge-pass{% else %}badge-fail{% endif %}">
+                  {{ m.result }}
+                </span>
+              </td>
+              <td class="text-end pe-4">
+                <div class="d-inline-flex gap-1">
+                  <!-- Download Report -->
+                  <a href="{{ url_for('download_report', student_id=m.student_id, mark_id=m.id) }}" class="btn-action" title="Download Official PDF Report">
+                    <i class="fa-solid fa-file-pdf text-danger"></i>
+                  </a>
+                  <!-- Edit Marks -->
+                  <a href="{{ url_for('edit_marks', mark_id=m.id) }}" class="btn-action" title="Edit Examination Marks">
+                    <i class="fa-solid fa-pen-to-square text-warning"></i>
+                  </a>
+                  <!-- Delete Modal Trigger -->
+                  <button type="button" class="btn-action delete" title="Delete Marks Record" 
+                          onclick="confirmDeleteMarks('{{ m.id }}', '{{ m.student_name }}', '{{ m.exam_name }}')">
+                    <i class="fa-solid fa-trash-can text-danger"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-file-excel fs-1 d-block mb-3 opacity-50"></i>
+                No examination marks recorded yet. Click <strong>Enter Marks</strong> to record exam performance.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Marks Confirmation Modal -->
+<div class="modal fade" id="deleteMarksModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i> Confirm Marks Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-4">
+        <p class="text-muted mb-2">Are you sure you want to delete this examination record?</p>
+        <div class="p-3 bg-light rounded-3 border">
+          <div class="fw-bold text-dark" id="delMarkStudent">Student</div>
+          <div class="small text-muted" id="delMarkExam">Exam Name</div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteMarksForm" method="POST" action="">
+          <button type="submit" class="btn btn-danger rounded-3 px-4">
+            <i class="fa-solid fa-trash me-1"></i> Delete Record
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function confirmDeleteMarks(markId, studentName, examName) {
+    document.getElementById('delMarkStudent').textContent = studentName;
+    document.getElementById('delMarkExam').textContent = examName;
+    document.getElementById('deleteMarksForm').action = "/marks/delete/" + markId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteMarksModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

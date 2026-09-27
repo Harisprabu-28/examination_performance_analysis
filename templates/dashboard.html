@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Academic Administration Dashboard{% endblock %}
+{% block page_subtitle %}Real-time cohort metrics, subject performance, and statistical distributions{% endblock %}
+
+{% block content %}
+<!-- Examination Selector Header Bar -->
+<div class="custom-card mb-4 bg-white border-start border-4 border-primary">
+  <div class="custom-card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+        <i class="fa-solid fa-graduation-cap fs-5"></i>
+      </div>
+      <div>
+        <h5 class="fw-bold mb-0 text-dark">Active Examination Analysis</h5>
+        <small class="text-muted">Select an examination below. All dashboard cards, charts, and student reports update dynamically.</small>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2 ms-auto">
+      <label for="examSelector" class="fw-bold text-secondary small mb-0"><i class="fa-solid fa-filter me-1 text-primary"></i> Select Examination:</label>
+      <select id="examSelector" class="form-select form-select-lg fw-bold text-primary border-primary shadow-sm" style="min-width: 200px; cursor: pointer;">
+        <option value="CIA1" {% if selected_exam == 'CIA1' %}selected{% endif %}>CIA 1</option>
+        <option value="CIA2" {% if selected_exam == 'CIA2' %}selected{% endif %}>CIA 2</option>
+        <option value="MODEL" {% if selected_exam == 'MODEL' %}selected{% endif %}>Model Exam</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- No Data Alert Banner -->
+<div id="noDataBanner" class="alert alert-warning border-warning d-flex align-items-center gap-3 mb-4 {% if has_data %}d-none{% endif %}" role="alert">
+  <i class="fa-solid fa-triangle-exclamation fs-3 text-warning"></i>
+  <div>
+    <h6 class="fw-bold mb-1" id="noDataTitle">No marks available for <span id="noDataExamLabel">{{ exam_label }}</span></h6>
+    <p class="mb-0 small text-dark">Faculty has not uploaded score records for this examination yet. Select another examination or upload scores via Faculty Mark Upload.</p>
+  </div>
+</div>
+
+<!-- Top KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card primary">
+      <div class="stat-icon-box primary">
+        <i class="fa-solid fa-user-graduate"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardTotalStudents">{{ stats.total_students }}</h3>
+        <p>Total Students</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card purple">
+      <div class="stat-icon-box purple">
+        <i class="fa-solid fa-file-lines"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardTotalRecords">{{ stats.total_records }}</h3>
+        <p>Exam Records</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card primary">
+      <div class="stat-icon-box primary">
+        <i class="fa-solid fa-chart-simple"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardAvgPercentage">{{ stats.avg_percentage }}%</h3>
+        <p>Class Average</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card success">
+      <div class="stat-icon-box success">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardPassPercentage">{{ stats.pass_percentage }}%</h3>
+        <p>Pass Rate</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card danger">
+      <div class="stat-icon-box danger">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardFailedStudents">{{ stats.failed_students }}</h3>
+        <p>Failed Count</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="stat-card warning">
+      <div class="stat-icon-box warning">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <div class="stat-info">
+        <h3 id="cardTopPerformersCount">{{ stats.top_performers_count }}</h3>
+        <p>Top Achievers (A+)</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Exam Marks Management Quick Section -->
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="custom-card">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Faculty Marks Management & Upload</h5>
+        <span class="badge bg-primary bg-opacity-10 text-primary border">CIA 1 • CIA 2 • Model Exam</span>
+      </div>
+      <div class="custom-card-body">
+        <div class="row g-3">
+          <div class="col-md-3 col-sm-6">
+            <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <span class="badge bg-primary px-2 py-1 mb-1">CIA 1</span>
+                <h6 class="fw-bold mb-0">CIA 1 Marks</h6>
+                <small class="text-muted">Dataset Active</small>
+              </div>
+              <a href="{{ url_for('exam_view', exam_type='cia1') }}" class="btn btn-sm btn-outline-primary rounded-circle p-2 ms-2" title="View CIA 1">
+                <i class="fa-solid fa-arrow-right"></i>
+              </a>
+            </div>
+          </div>
+
+          <div class="col-md-3 col-sm-6">
+            <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <span class="badge bg-info px-2 py-1 mb-1">CIA 2</span>
+                <h6 class="fw-bold mb-0">CIA 2 Marks</h6>
+                <small class="text-muted">Excel Upload & View</small>
+              </div>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('upload_exam_page', exam_type='cia2') }}" class="btn btn-sm btn-info text-white rounded-circle p-2" title="Upload CIA 2 Excel">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </a>
+                <a href="{{ url_for('exam_view', exam_type='cia2') }}" class="btn btn-sm btn-outline-info rounded-circle p-2" title="View CIA 2">
+                  <i class="fa-solid fa-eye"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3 col-sm-6">
+            <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <span class="badge bg-success px-2 py-1 mb-1">MODEL</span>
+                <h6 class="fw-bold mb-0">Model Exam Marks</h6>
+                <small class="text-muted">Excel Upload & View</small>
+              </div>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('upload_exam_page', exam_type='model') }}" class="btn btn-sm btn-success rounded-circle p-2" title="Upload Model Exam Excel">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </a>
+                <a href="{{ url_for('exam_view', exam_type='model') }}" class="btn btn-sm btn-outline-success rounded-circle p-2" title="View Model Exam">
+                  <i class="fa-solid fa-eye"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3 col-sm-6">
+            <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <span class="badge bg-purple px-2 py-1 mb-1 text-white" style="background-color: #8b5cf6;">ANALYSIS</span>
+                <h6 class="fw-bold mb-0">Performance Analysis</h6>
+                <small class="text-muted">Multi-Exam Tracking</small>
+              </div>
+              <a href="{{ url_for('performance_analysis') }}" class="btn btn-sm btn-outline-dark rounded-circle p-2 ms-2" title="Performance Analysis">
+                <i class="fa-solid fa-chart-line"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section 1 -->
+<div class="row g-4 mb-4">
+  <!-- Bar Chart: Average Marks by Subject -->
+  <div class="col-lg-8">
+    <div class="custom-card h-100">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-chart-column text-primary me-2"></i> Average Marks by Subject</h5>
+        <span class="badge bg-light text-secondary border" id="chartExamBadge">{{ exam_label }}</span>
+      </div>
+      <div class="custom-card-body">
+        <div style="height: 300px;">
+          <canvas id="subjectAvgChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doughnut Chart: Pass vs Fail Ratio -->
+  <div class="col-lg-4">
+    <div class="custom-card h-100">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-pie-chart text-primary me-2"></i> Pass vs Fail Ratio</h5>
+        <span class="badge bg-light text-secondary border">Pass Mark >= 40</span>
+      </div>
+      <div class="custom-card-body d-flex flex-column align-items-center justify-content-center">
+        <div style="height: 250px; width: 100%;">
+          <canvas id="passFailChart"></canvas>
+        </div>
+        <div class="d-flex justify-content-around w-100 mt-3 pt-2 border-top text-center small">
+          <div>
+            <span class="text-success fw-bold fs-6" id="passCountText">{{ stats.passed_students }}</span>
+            <div class="text-muted">Passed</div>
+          </div>
+          <div>
+            <span class="text-danger fw-bold fs-6" id="failCountText">{{ stats.failed_students }}</span>
+            <div class="text-muted">Failed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section 2 -->
+<div class="row g-4 mb-4">
+  <!-- Doughnut Chart: Grade Distribution -->
+  <div class="col-lg-5">
+    <div class="custom-card h-100">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-chart-pie text-primary me-2"></i> Grade Distribution</h5>
+        <span class="badge bg-light text-secondary border">A+ to F</span>
+      </div>
+      <div class="custom-card-body">
+        <div style="height: 280px;">
+          <canvas id="gradeDistChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line Chart: Performance Trend Across Exams -->
+  <div class="col-lg-7">
+    <div class="custom-card h-100">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-arrow-trend-up text-primary me-2"></i> Examination Performance Trends</h5>
+        <span class="badge bg-light text-secondary border">CIA 1 vs CIA 2 vs Model</span>
+      </div>
+      <div class="custom-card-body">
+        <div style="height: 280px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Performing Students Table -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-12">
+    <div class="custom-card">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-award text-warning me-2"></i> Top Performing Students (<span id="topExamTitle">{{ exam_label }}</span>)</h5>
+        <a href="{{ url_for('students_list') }}" class="btn btn-sm btn-outline-custom">View All Students</a>
+      </div>
+      <div class="custom-card-body p-0">
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Examination</th>
+                <th>Total Marks</th>
+                <th>Percentage</th>
+                <th>Grade</th>
+                <th>Result</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="topStudentsTbody">
+              {% for row in top_students %}
+                <tr>
+                  <td>
+                    {% if loop.index == 1 %}
+                      <span class="badge rounded-pill bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i> #1</span>
+                    {% elif loop.index == 2 %}
+                      <span class="badge rounded-pill bg-secondary text-white">#2</span>
+                    {% elif loop.index == 3 %}
+                      <span class="badge rounded-pill bg-danger bg-opacity-75 text-white">#3</span>
+                    {% else %}
+                      <span class="text-muted fw-bold ps-2">#{{ loop.index }}</span>
+                    {% endif %}
+                  </td>
+                  <td><strong class="text-primary font-monospace">{{ row.register_number }}</strong></td>
+                  <td>
+                    <div class="fw-bold">{{ row.name }}</div>
+                    <small class="text-muted">{{ row.email }}</small>
+                  </td>
+                  <td><span class="badge bg-light text-dark border">{{ row.department }}</span></td>
+                  <td>{{ row.exam_name }}</td>
+                  <td><strong>{{ row.total_marks }}</strong> / 600</td>
+                  <td><strong class="text-success">{{ "%.2f"|format(row.percentage) }}%</strong></td>
+                  <td><span class="grade-pill {{ row.grade|replace('+', '-plus') }}">{{ row.grade }}</span></td>
+                  <td>
+                    <span class="badge-custom {% if row.result == 'PASS' %}badge-pass{% else %}badge-fail{% endif %}">
+                      {{ row.result }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{{ url_for('download_report', student_id=row.student_id) }}" class="btn-action" title="Download Report">
+                      <i class="fa-solid fa-file-pdf text-danger"></i>
+                    </a>
+                    <a href="{{ url_for('student_detail', student_id=row.student_id) }}" class="btn-action" title="View Profile">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="10" class="text-center py-4 text-muted">No marks available for this examination.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Weak Student Identification Module -->
+<div class="row g-4">
+  <div class="col-lg-12">
+    <div class="custom-card border-start border-4 border-danger">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title text-danger mb-0">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i> Students Needing Improvement (<span id="weakExamTitle">{{ exam_label }}</span>)
+        </h5>
+        <span class="badge bg-danger bg-opacity-10 text-danger border px-3 py-1">Selected Examination Records Only</span>
+      </div>
+      <div class="custom-card-body p-0">
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Section</th>
+                <th>Exam Score (%)</th>
+                <th>Status</th>
+                <th>Reason / Failed Subjects</th>
+              </tr>
+            </thead>
+            <tbody id="weakStudentsTbody">
+              {% for w in weak_students %}
+                <tr class="table-danger bg-opacity-10">
+                  <td><strong class="font-monospace text-danger">{{ w.register_number }}</strong></td>
+                  <td><strong>{{ w.name }}</strong></td>
+                  <td><span class="badge bg-light text-dark border">{{ w.department }}</span></td>
+                  <td><span class="badge bg-secondary bg-opacity-10 text-secondary border px-2">{{ w.section }}</span></td>
+                  <td><strong>{{ w.latest_perc }}%</strong></td>
+                  <td><span class="badge bg-danger">{{ w.status }}</span></td>
+                  <td class="text-danger small font-monospace fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ w.reasons }}</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-success fw-bold">
+                    <i class="fa-solid fa-circle-check me-1"></i> No weak students or failing scores identified in this examination.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let subjectBarChartInstance = null;
+let passFailPieChartInstance = null;
+let gradeDistChartInstance = null;
+let trendLineChartInstance = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const initialSubjectLabels = {{ chart_data.subject_labels | tojson }};
+  const initialSubjectAverages = {{ chart_data.subject_averages | tojson }};
+  const initialGradeCounts = {{ chart_data.grade_distribution | tojson }};
+  const initialTrendLabels = {{ chart_data.trend_labels | tojson }};
+  const initialTrendAvgs = {{ chart_data.trend_averages | tojson }};
+  const initialTrendTops = {{ chart_data.trend_tops | tojson }};
+  const initialPassed = {{ stats.passed_students }};
+  const initialFailed = {{ stats.failed_students }};
+
+  // Render initial charts
+  subjectBarChartInstance = ExamCharts.renderSubjectBarChart('subjectAvgChart', initialSubjectLabels, initialSubjectAverages);
+  passFailPieChartInstance = ExamCharts.renderPassFailPieChart('passFailChart', initialPassed, initialFailed);
+  gradeDistChartInstance = ExamCharts.renderGradeChart('gradeDistChart', initialGradeCounts);
+  trendLineChartInstance = ExamCharts.renderTrendLineChart('trendChart', initialTrendLabels, initialTrendAvgs, initialTrendTops);
+
+  // Setup Exam Selector AJAX Event Listener
+  const examSelector = document.getElementById('examSelector');
+  if (examSelector) {
+    examSelector.addEventListener('change', function() {
+      const selectedExam = this.value;
+      updateDashboardData(selectedExam);
+    });
+  }
+});
+
+function updateDashboardData(examType) {
+  fetch('/api/dashboard?exam=' + examType)
+    .then(response => response.json())
+    .then(data => {
+      if (data.status !== 'success') return;
+
+      const stats = data.stats;
+      const chartData = data.chart_data;
+      const topStudents = data.top_students;
+      const weakStudents = data.weak_students;
+      const examLabel = data.exam_label;
+      const hasData = data.has_data;
+
+      // Update Summary Cards
+      document.getElementById('cardTotalStudents').textContent = stats.total_students;
+      document.getElementById('cardTotalRecords').textContent = stats.total_records;
+      document.getElementById('cardAvgPercentage').textContent = stats.avg_percentage + '%';
+      document.getElementById('cardPassPercentage').textContent = stats.pass_percentage + '%';
+      document.getElementById('cardFailedStudents').textContent = stats.failed_students;
+      document.getElementById('cardTopPerformersCount').textContent = stats.top_performers_count;
+
+      document.getElementById('passCountText').textContent = stats.passed_students;
+      document.getElementById('failCountText').textContent = stats.failed_students;
+
+      // Update Header Badges and Titles
+      document.getElementById('chartExamBadge').textContent = examLabel;
+      document.getElementById('topExamTitle').textContent = examLabel;
+      document.getElementById('weakExamTitle').textContent = examLabel;
+
+      // Banner state
+      const banner = document.getElementById('noDataBanner');
+      const examLabelSpan = document.getElementById('noDataExamLabel');
+      if (banner && examLabelSpan) {
+        if (!hasData) {
+          examLabelSpan.textContent = examLabel;
+          banner.classList.remove('d-none');
+        } else {
+          banner.classList.add('d-none');
+        }
+      }
+
+      // Update Subject Bar Chart
+      if (subjectBarChartInstance) {
+        subjectBarChartInstance.data.datasets[0].data = chartData.subject_averages;
+        subjectBarChartInstance.update();
+      }
+
+      // Update Pass vs Fail Pie Chart
+      if (passFailPieChartInstance) {
+        passFailPieChartInstance.data.datasets[0].data = [stats.passed_students, stats.failed_students];
+        passFailPieChartInstance.update();
+      }
+
+      // Update Grade Distribution Doughnut Chart
+      if (gradeDistChartInstance) {
+        gradeDistChartInstance.data.datasets[0].data = Object.values(chartData.grade_distribution);
+        gradeDistChartInstance.update();
+      }
+
+      // Update Top Performing Students Table
+      const topTbody = document.getElementById('topStudentsTbody');
+      if (topTbody) {
+        if (topStudents.length === 0) {
+          topTbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">No marks available for ' + examLabel + '.</td></tr>';
+        } else {
+          let html = '';
+          topStudents.forEach((row, idx) => {
+            let rankBadge = '';
+            if (idx === 0) rankBadge = '<span class="badge rounded-pill bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i> #1</span>';
+            else if (idx === 1) rankBadge = '<span class="badge rounded-pill bg-secondary text-white">#2</span>';
+            else if (idx === 2) rankBadge = '<span class="badge rounded-pill bg-danger bg-opacity-75 text-white">#3</span>';
+            else rankBadge = '<span class="text-muted fw-bold ps-2">#' + (idx + 1) + '</span>';
+
+            const gradeClass = row.grade ? row.grade.replace('+', '-plus') : '';
+            const resultBadgeClass = row.result === 'PASS' ? 'badge-pass' : 'badge-fail';
+
+            html += `<tr>
+              <td>${rankBadge}</td>
+              <td><strong class="text-primary font-monospace">${row.register_number}</strong></td>
+              <td>
+                <div class="fw-bold">${row.name}</div>
+                <small class="text-muted">${row.email}</small>
+              </td>
+              <td><span class="badge bg-light text-dark border">${row.department}</span></td>
+              <td>${row.exam_name}</td>
+              <td><strong>${row.total_marks}</strong> / 600</td>
+              <td><strong class="text-success">${Number(row.percentage).toFixed(2)}%</strong></td>
+              <td><span class="grade-pill ${gradeClass}">${row.grade}</span></td>
+              <td><span class="badge-custom ${resultBadgeClass}">${row.result}</span></td>
+              <td>
+                <a href="/reports/download/${row.student_id}" class="btn-action" title="Download Report">
+                  <i class="fa-solid fa-file-pdf text-danger"></i>
+                </a>
+                <a href="/students/${row.student_id}" class="btn-action" title="View Profile">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+              </td>
+            </tr>`;
+          });
+          topTbody.innerHTML = html;
+        }
+      }
+
+      // Update Weak Students Table
+      const weakTbody = document.getElementById('weakStudentsTbody');
+      if (weakTbody) {
+        if (weakStudents.length === 0) {
+          weakTbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> No weak students or failing scores identified in ' + examLabel + '.</td></tr>';
+        } else {
+          let html = '';
+          weakStudents.forEach(w => {
+            html += `<tr class="table-danger bg-opacity-10">
+              <td><strong class="font-monospace text-danger">${w.register_number}</strong></td>
+              <td><strong>${w.name}</strong></td>
+              <td><span class="badge bg-light text-dark border">${w.department}</span></td>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border px-2">${w.section}</span></td>
+              <td><strong>${w.latest_perc}%</strong></td>
+              <td><span class="badge bg-danger">${w.status}</span></td>
+              <td class="text-danger small font-monospace fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i> ${w.reasons}</td>
+            </tr>`;
+          });
+          weakTbody.innerHTML = html;
+        }
+      }
+    })
+    .catch(err => console.error('Failed to fetch dashboard data:', err));
+}
+</script>
+{% endblock %}

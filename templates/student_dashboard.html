@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}My Student Dashboard{% endblock %}
+{% block page_title %}Student Academic Portal{% endblock %}
+{% block page_subtitle %}Personalized examination performance metrics, subject radar benchmarks, and ML performance standing{% endblock %}
+
+{% block content %}
+<!-- Student Profile Banner Card -->
+<div class="custom-card mb-4" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff;">
+  <div class="custom-card-body p-4">
+    <div class="row align-items-center g-3">
+      <div class="col-auto">
+        <div class="user-avatar" style="width: 64px; height: 64px; font-size: 1.5rem; background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+          <i class="fa-solid fa-user-graduate"></i>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h3 class="fw-bold mb-0 text-white">{{ student.name }}</h3>
+          <span class="badge bg-primary px-3 py-1 font-monospace">{{ student.register_number }}</span>
+          <span class="badge bg-light text-dark">{{ student.department }}</span>
+        </div>
+        <div class="text-white-50 small d-flex flex-wrap gap-3">
+          <span><i class="fa-solid fa-calendar me-1"></i> {{ student.year }} • {{ student.semester }} (Sec {{ student.section }})</span>
+          <span><i class="fa-solid fa-envelope me-1"></i> {{ student.email }}</span>
+          <span><i class="fa-solid fa-phone me-1"></i> {{ student.phone or 'N/A' }}</span>
+        </div>
+      </div>
+      <div class="col-auto">
+        {% if latest_mark %}
+          <a href="{{ url_for('download_report', student_id=student.id, mark_id=latest_mark.id) }}" class="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm">
+            <i class="fa-solid fa-file-pdf text-danger me-1"></i> Download PDF Report
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+<!-- Examinations Statements Section -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 d-flex align-items-center justify-content-between h-100 border-start border-4 border-primary">
+      <div>
+        <span class="badge bg-primary px-2 py-1 mb-1">CIA 1</span>
+        <h6 class="fw-bold mb-0">CIA 1 Marks</h6>
+        <small class="{% if exam_history.CIA1 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {% if exam_history.CIA1 %}
+            {{ "%.2f"|format(exam_history.CIA1.percentage) }}% (Grade {{ exam_history.CIA1.grade }})
+          {% else %}
+            Marks not uploaded yet.
+          {% endif %}
+        </small>
+      </div>
+      <a href="{{ url_for('student_exam_page', exam_type='cia1') }}" class="btn btn-sm btn-outline-primary rounded-circle p-2 ms-2" title="View CIA 1">
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 d-flex align-items-center justify-content-between h-100 border-start border-4 border-info">
+      <div>
+        <span class="badge bg-info px-2 py-1 mb-1">CIA 2</span>
+        <h6 class="fw-bold mb-0">CIA 2 Marks</h6>
+        <small class="{% if exam_history.CIA2 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {% if exam_history.CIA2 %}
+            {{ "%.2f"|format(exam_history.CIA2.percentage) }}% (Grade {{ exam_history.CIA2.grade }})
+          {% else %}
+            Marks not uploaded yet.
+          {% endif %}
+        </small>
+      </div>
+      <a href="{{ url_for('student_exam_page', exam_type='cia2') }}" class="btn btn-sm btn-outline-info rounded-circle p-2 ms-2" title="View CIA 2">
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 d-flex align-items-center justify-content-between h-100 border-start border-4 border-success">
+      <div>
+        <span class="badge bg-success px-2 py-1 mb-1">MODEL</span>
+        <h6 class="fw-bold mb-0">Model Exam Marks</h6>
+        <small class="{% if exam_history.MODEL %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {% if exam_history.MODEL %}
+            {{ "%.2f"|format(exam_history.MODEL.percentage) }}% (Grade {{ exam_history.MODEL.grade }})
+          {% else %}
+            Marks not uploaded yet.
+          {% endif %}
+        </small>
+      </div>
+      <a href="{{ url_for('student_exam_page', exam_type='model') }}" class="btn btn-sm btn-outline-success rounded-circle p-2 ms-2" title="View Model Exam">
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 d-flex align-items-center justify-content-between h-100 border-start border-4 border-purple" style="border-left-color: #8b5cf6 !important;">
+      <div>
+        <span class="badge bg-purple px-2 py-1 mb-1 text-white" style="background-color: #8b5cf6;">OVERALL</span>
+        <h6 class="fw-bold mb-0">My Performance</h6>
+        <small class="text-muted">Multi-Exam Trend</small>
+      </div>
+      <a href="{{ url_for('student_performance_page') }}" class="btn btn-sm btn-outline-dark rounded-circle p-2 ms-2" title="View Multi-Exam Trend">
+        <i class="fa-solid fa-chart-line"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+{% if latest_mark %}
+  <!-- Latest Performance Metric Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+      <div class="stat-card primary">
+        <div class="stat-icon-box primary">
+          <i class="fa-solid fa-star"></i>
+        </div>
+        <div class="stat-info">
+          <h3>{{ latest_mark.total_marks }} <small class="text-muted fs-6">/ 600</small></h3>
+          <p>Total Scored Marks</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="stat-card primary">
+        <div class="stat-icon-box primary">
+          <i class="fa-solid fa-percent"></i>
+        </div>
+        <div class="stat-info">
+          <h3>{{ "%.2f"|format(latest_mark.percentage) }}%</h3>
+          <p>Percentage Score</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="stat-card purple">
+        <div class="stat-icon-box purple">
+          <i class="fa-solid fa-medal"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Grade {{ latest_mark.grade }}</h3>
+          <p>Cumulative Grade</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="stat-card {% if latest_mark.result == 'PASS' %}success{% else %}danger{% endif %}">
+        <div class="stat-icon-box {% if latest_mark.result == 'PASS' %}success{% else %}danger{% endif %}">
+          <i class="fa-solid {% if latest_mark.result == 'PASS' %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+        </div>
+        <div class="stat-info">
+          <h3>{{ latest_mark.result }}</h3>
+          <p>Official Status</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Radar Chart & ML Assessment Row -->
+  <div class="row g-4 mb-4">
+    <!-- Radar Chart: Subject Performance Benchmark -->
+    <div class="col-lg-6">
+      <div class="custom-card h-100">
+        <div class="custom-card-header">
+          <h5 class="card-title"><i class="fa-solid fa-chart-radar text-primary"></i> Subject Performance Radar</h5>
+          <span class="badge bg-light text-secondary border">{{ latest_mark.exam_name }}</span>
+        </div>
+        <div class="custom-card-body">
+          <div style="height: 320px;">
+            <canvas id="studentRadarChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Machine Learning Performance Standing & AI Guidance -->
+    <div class="col-lg-6">
+      <div class="custom-card h-100">
+        <div class="custom-card-header">
+          <h5 class="card-title"><i class="fa-solid fa-brain text-primary"></i> ML Performance Standing</h5>
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Random Forest</span>
+        </div>
+        <div class="custom-card-body">
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted small fw-semibold">Classified Standing:</span>
+              <span class="badge-custom badge-{{ ml_standing.prediction | lower | replace(' ', '-') }} fs-6 px-3 py-1">
+                {{ ml_standing.prediction }}
+              </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="text-muted small fw-semibold">Model Confidence:</span>
+              <strong class="text-primary">{{ ml_standing.confidence }}%</strong>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar bg-primary" style="width: {{ ml_standing.confidence }}%;"></div>
+            </div>
+          </div>
+
+          <h6 class="fw-bold text-dark mb-2 small text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-lightbulb text-warning me-1"></i> Personalized Academic Action Plan
+          </h6>
+          <ul class="recommendation-list">
+            {% for rec in ml_standing.recommendations %}
+              <li class="recommendation-item">
+                <i class="fa-solid fa-arrow-right text-primary mt-1"></i>
+                <div>{{ rec }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subject Marks Breakdown Table -->
+  <div class="custom-card mb-4">
+    <div class="custom-card-header">
+      <h5 class="card-title"><i class="fa-solid fa-table-list text-primary"></i> Subject Course Marks Breakdown</h5>
+      <span class="badge bg-light text-secondary border">{{ latest_mark.exam_name }}</span>
+    </div>
+    <div class="custom-card-body p-0">
+      <div class="table-responsive">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th>Course Title</th>
+              <th>Max Marks</th>
+              <th>Pass Threshold</th>
+              <th>Scored Marks</th>
+              <th>Performance Bar</th>
+              <th>Course Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set courses = [
+              ('Mathematics', latest_mark.mathematics),
+              ('English', latest_mark.english),
+              ('Science', latest_mark.science),
+              ('Computer Science', latest_mark.computer_science),
+              ('Database Management', latest_mark.database_management),
+              ('Web Technology', latest_mark.web_technology)
+            ] %}
+            {% for name, score in courses %}
+              <tr>
+                <td><strong>{{ name }}</strong></td>
+                <td>100</td>
+                <td>40</td>
+                <td><strong class="{% if score >= 75 %}text-success{% elif score >= 40 %}text-primary{% else %}text-danger{% endif %} fs-6">{{ score }}</strong></td>
+                <td style="width: 25%;">
+                  <div class="progress" style="height: 8px;">
+                    <div class="progress-bar {% if score >= 75 %}bg-success{% elif score >= 40 %}bg-primary{% else %}bg-danger{% endif %}" 
+                         style="width: {{ score }}%;"></div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-custom {% if score >= 40 %}badge-pass{% else %}badge-fail{% endif %}">
+                    {% if score >= 40 %}PASS{% else %}FAIL{% endif %}
+                  </span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Examination History Table -->
+  <div class="custom-card">
+    <div class="custom-card-header">
+      <h5 class="card-title"><i class="fa-solid fa-clock-rotate-left text-primary"></i> Examination History Records</h5>
+      <span class="badge bg-light text-secondary border">{{ all_marks|length }} Term(s)</span>
+    </div>
+    <div class="custom-card-body p-0">
+      <div class="table-responsive">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th>Examination Name</th>
+              <th>Academic Year</th>
+              <th>Total Marks</th>
+              <th>Percentage</th>
+              <th>Grade</th>
+              <th>Result</th>
+              <th>Official Report</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in all_marks %}
+              <tr>
+                <td><strong>{{ m.exam_name }}</strong></td>
+                <td>{{ m.academic_year }}</td>
+                <td>{{ m.total_marks }} / 600</td>
+                <td><strong>{{ "%.2f"|format(m.percentage) }}%</strong></td>
+                <td><span class="grade-pill {{ m.grade|replace('+', '-plus') }}">{{ m.grade }}</span></td>
+                <td>
+                  <span class="badge-custom {% if m.result == 'PASS' %}badge-pass{% else %}badge-fail{% endif %}">
+                    {{ m.result }}
+                  </span>
+                </td>
+                <td>
+                  <a href="{{ url_for('download_report', student_id=student.id, mark_id=m.id) }}" class="btn btn-sm btn-outline-danger">
+                    <i class="fa-solid fa-file-pdf me-1"></i> Download PDF
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <div class="custom-card text-center p-5">
+    <div class="text-muted fs-1 mb-3"><i class="fa-solid fa-hourglass-half opacity-50"></i></div>
+    <h5 class="fw-bold">No Examination Marks Published</h5>
+    <p class="text-muted small">Your examination scores have not been published by the faculty yet. Please check back later.</p>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if latest_mark %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const scores = [
+    {{ latest_mark.mathematics }},
+    {{ latest_mark.english }},
+    {{ latest_mark.science }},
+    {{ latest_mark.computer_science }},
+    {{ latest_mark.database_management }},
+    {{ latest_mark.web_technology }}
+  ];
+  ExamCharts.renderStudentRadarChart('studentRadarChart', scores);
+});
+</script>
+{% endif %}
+{% endblock %}

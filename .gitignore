@@ -1,0 +1,32 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# Generated/uploaded files
+uploads/
+*.log
+*.tmp
+
+# Generated machine-learning model files
+ml/model.pkl
+*.pkl
+*.joblib
+
+# Generated reports files
+reports/*.pdf
+reports/*.csv

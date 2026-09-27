@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Student{% endblock %}
+{% block page_title %}Enroll New Student{% endblock %}
+{% block page_subtitle %}Register academic profile and student credentials in the institutional database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="custom-card">
+      <div class="custom-card-header">
+        <h5 class="card-title"><i class="fa-solid fa-user-plus text-primary"></i> Student Registration Form</h5>
+        <a href="{{ url_for('students_list') }}" class="btn btn-sm btn-outline-custom">
+          <i class="fa-solid fa-arrow-left me-1"></i> Back to Roster
+        </a>
+      </div>
+
+      <div class="custom-card-body p-4">
+        <form action="{{ url_for('add_student') }}" method="POST">
+          <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-id-card me-1"></i> 1. Academic & Identity Information
+          </h6>
+          
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label-custom">Register Number <span class="text-danger">*</span></label>
+              <input type="text" name="register_number" class="form-control-custom font-monospace" placeholder="e.g. REG2024026" required>
+              <small class="text-muted" style="font-size: 0.75rem;">Must be unique across institutional records.</small>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control-custom" placeholder="e.g. Rahul Sharma" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Gender</label>
+              <select name="gender" class="form-select-custom">
+                <option value="Male" selected>Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Department <span class="text-danger">*</span></label>
+              <select name="department" class="form-select-custom" required>
+                <option value="Computer Science & Engineering" selected>Computer Science & Engineering</option>
+                <option value="Information Technology">Information Technology</option>
+                <option value="Artificial Intelligence & Data Science">Artificial Intelligence & Data Science</option>
+                <option value="Electronics & Communication">Electronics & Communication</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label-custom">Academic Year</label>
+              <select name="year" class="form-select-custom">
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year" selected>3rd Year</option>
+                <option value="4th Year">4th Year</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label-custom">Semester</label>
+              <select name="semester" class="form-select-custom">
+                <option value="I Semester">I Semester</option>
+                <option value="II Semester">II Semester</option>
+                <option value="III Semester">III Semester</option>
+                <option value="IV Semester">IV Semester</option>
+                <option value="V Semester">V Semester</option>
+                <option value="VI Semester" selected>VI Semester</option>
+                <option value="VII Semester">VII Semester</option>
+                <option value="VIII Semester">VIII Semester</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label-custom">Section</label>
+              <input type="text" name="section" class="form-control-custom text-center text-uppercase" value="A" maxlength="2" required>
+            </div>
+          </div>
+
+          <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-address-book me-1"></i> 2. Contact & Security Credentials
+          </h6>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label-custom">Email Address <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control-custom" placeholder="student@college.edu" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Phone Number</label>
+              <input type="tel" name="phone" class="form-control-custom" placeholder="9876543210">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label-custom">Date of Birth</label>
+              <input type="date" name="date_of_birth" class="form-control-custom" value="2003-01-01">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label-custom">Student Portal Password <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control-custom" value="student123" required>
+              <small class="text-muted" style="font-size: 0.75rem;">Default demo password: <code>student123</code></small>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+            <a href="{{ url_for('students_list') }}" class="btn btn-outline-custom">Cancel</a>
+            <button type="submit" class="btn-primary-custom px-4">
+              <i class="fa-solid fa-check"></i> Register Student
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

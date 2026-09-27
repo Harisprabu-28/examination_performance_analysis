@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Examination Performance Analysis Using Machine Learning</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+
+<div class="login-card">
+  <div class="row g-0">
+    <!-- Left Hero Banner -->
+    <div class="col-lg-5 p-5 text-white d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);">
+      <div>
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="brand-icon">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <div>
+            <h4 class="fw-bold mb-0">EduMetrics ML</h4>
+            <small class="text-white-50">Academic Intelligence</small>
+          </div>
+        </div>
+        
+        <h3 class="fw-bold lh-sm mb-3">Examination Performance Analysis</h3>
+        <span class="badge bg-primary bg-opacity-50 text-white border border-primary px-3 py-2 rounded-pill mb-3">
+          <i class="fa-solid fa-brain me-1"></i> Machine Learning Enabled
+        </span>
+        
+        <p class="text-light opacity-75 small">
+          Analyze student examination performance, identify academic trends, and predict future performance using advanced Random Forest classification models.
+        </p>
+      </div>
+
+      <div class="pt-4 border-top border-white border-opacity-10">
+        <div class="d-flex gap-3 small text-white-50">
+          <div><i class="fa-solid fa-shield-halved me-1 text-info"></i> Role-Based Access</div>
+          <div><i class="fa-solid fa-file-pdf me-1 text-warning"></i> PDF Reporting</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Login Forms Container -->
+    <div class="col-lg-7 p-4 p-md-5 bg-white">
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show rounded-3 py-2 px-3 mb-4" role="alert">
+              <small><i class="fa-solid fa-circle-info me-1"></i> {{ message }}</small>
+              <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="text-center mb-4">
+        <h4 class="fw-bold text-dark mb-1">Welcome Back</h4>
+        <p class="text-muted small">Please select your portal to log in</p>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div class="d-flex rounded-3 overflow-hidden border mb-4">
+        <button type="button" class="login-tab-btn active" id="tabAdminBtn" onclick="switchLoginTab('admin')">
+          <i class="fa-solid fa-user-shield"></i> Faculty / Admin
+        </button>
+        <button type="button" class="login-tab-btn" id="tabStudentBtn" onclick="switchLoginTab('student')">
+          <i class="fa-solid fa-user-graduate"></i> Student Portal
+        </button>
+      </div>
+
+      <!-- Admin Login Form -->
+      <form id="adminForm" action="{{ url_for('login') }}" method="POST">
+        <input type="hidden" name="role_type" value="admin">
+        
+        <div class="mb-3">
+          <label class="form-label-custom"><i class="fa-solid fa-user me-1 text-primary"></i> Admin Username</label>
+          <input type="text" name="username" id="admin_user" class="form-control-custom" placeholder="e.g. admin" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label-custom"><i class="fa-solid fa-lock me-1 text-primary"></i> Password</label>
+          <input type="password" name="password" id="admin_pass" class="form-control-custom" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary-custom w-100 py-2 justify-content-center">
+          <i class="fa-solid fa-right-to-bracket"></i> Login as Admin
+        </button>
+      </form>
+
+      <!-- Student Login Form -->
+      <form id="studentForm" action="{{ url_for('login') }}" method="POST" style="display: none;">
+        <input type="hidden" name="role_type" value="student">
+        
+        <div class="mb-3">
+          <label class="form-label-custom"><i class="fa-solid fa-id-card me-1 text-primary"></i> Register Number</label>
+          <input type="text" name="register_number" id="student_reg" class="form-control-custom" placeholder="e.g. 927624BIT001" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label-custom"><i class="fa-solid fa-lock me-1 text-primary"></i> Student Password</label>
+          <input type="password" name="password" id="student_pass" class="form-control-custom" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary-custom w-100 py-2 justify-content-center">
+          <i class="fa-solid fa-right-to-bracket"></i> Login as Student
+        </button>
+      </form>
+
+      <!-- Quick Demo Credentials Hint Box -->
+      <div class="mt-4 p-3 bg-light rounded-3 border">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <small class="fw-bold text-muted text-uppercase" style="font-size: 0.7rem;"><i class="fa-solid fa-key text-warning"></i> Demo Quick Login</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fillCredentials('admin', 'admin', 'admin123')">
+            Auto-fill Admin (admin / admin123)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fillCredentials('student', '927624BIT001', 'student123')">
+            Auto-fill Student (927624BIT001 / student123)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function switchLoginTab(type) {
+    const adminTab = document.getElementById('tabAdminBtn');
+    const studentTab = document.getElementById('tabStudentBtn');
+    const adminForm = document.getElementById('adminForm');
+    const studentForm = document.getElementById('studentForm');
+
+    if (type === 'admin') {
+      adminTab.classList.add('active');
+      studentTab.classList.remove('active');
+      adminForm.style.display = 'block';
+      studentForm.style.display = 'none';
+    } else {
+      studentTab.classList.add('active');
+      adminTab.classList.remove('active');
+      studentForm.style.display = 'block';
+      adminForm.style.display = 'none';
+    }
+  }
+
+  function fillCredentials(type, user, pass) {
+    switchLoginTab(type);
+    if (type === 'admin') {
+      document.getElementById('admin_user').value = user;
+      document.getElementById('admin_pass').value = pass;
+    } else {
+      document.getElementById('student_reg').value = user;
+      document.getElementById('student_pass').value = pass;
+    }
+  }
+</script>
+</body>
+</html>
