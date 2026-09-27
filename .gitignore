@@ -30,3 +30,10 @@ ml/model.pkl
 # Generated reports files
 reports/*.pdf
 reports/*.csv
+
+# Local SQLite / Database files containing real or runtime data
+database/*.db
+*.db
+
+# Dataset files containing real student/personal identifiable information
+IT_STUDENTS_DATASET.xlsx
