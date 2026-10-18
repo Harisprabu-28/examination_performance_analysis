@@ -37,3 +37,7 @@ database/*.db
 
 # Dataset files containing real student/personal identifiable information
 IT_STUDENTS_DATASET.xlsx
+
+# Scratch directory
+scratch/
+

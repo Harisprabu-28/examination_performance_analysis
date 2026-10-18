@@ -202,6 +202,320 @@ def calculate_student_trend(student_id):
         'model_perc': history['MODEL']['percentage'] if history['MODEL'] else None
     }
 
+def get_detailed_student_performance_analysis(student_id):
+    """
+    Computes an extensive, accurate multi-examination comparative performance analysis
+    for a given student across CIA 1, CIA 2, and Model Examination using real stored DB marks.
+    Identifies subjects needing improvement, strong subjects, and personalized recommendations.
+    """
+    conn = get_db_connection()
+    student = conn.execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+    if not student:
+        conn.close()
+        return None
+        
+    student_dict = dict(student)
+    
+    # Fetch all mark records ordered chronologically
+    records = conn.execute(
+        "SELECT * FROM marks WHERE student_id = ? ORDER BY id ASC", (student_id,)
+    ).fetchall()
+    conn.close()
+    
+    exam_history = {'CIA1': None, 'CIA2': None, 'MODEL': None}
+    for r in records:
+        e_type = r['exam_type'] if 'exam_type' in r.keys() and r['exam_type'] else 'CIA1'
+        e_type = e_type.upper()
+        if e_type in exam_history:
+            exam_history[e_type] = dict(r)
+            
+    # Filter only available exams
+    available_exam_types = [et for et in ['CIA1', 'CIA2', 'MODEL'] if exam_history[et] is not None]
+    available_exams_count = len(available_exam_types)
+    
+    # 1. Overall Performance Status
+    if available_exams_count == 0:
+        overall_status = 'Insufficient Data'
+        overall_diff = 0.0
+        status_description = "No examination records are currently uploaded for this student."
+    elif available_exams_count == 1:
+        et = available_exam_types[0]
+        perc = exam_history[et]['percentage']
+        overall_status = 'Baseline (1 Exam Recorded)'
+        overall_diff = 0.0
+        status_description = f"Baseline performance established with {Config.EXAM_LABELS.get(et, et)} ({perc:.2f}%). Multi-exam comparative trend tracking requires at least two examination cycles."
+    else:
+        first_et = available_exam_types[0]
+        latest_et = available_exam_types[-1]
+        first_perc = exam_history[first_et]['percentage']
+        latest_perc = exam_history[latest_et]['percentage']
+        overall_diff = round(latest_perc - first_perc, 2)
+        
+        if overall_diff > 1.5:
+            overall_status = 'Improving'
+            status_description = f"Overall performance has improved by +{overall_diff:.2f}% ({Config.EXAM_LABELS.get(first_et, first_et)}: {first_perc:.2f}% -> {Config.EXAM_LABELS.get(latest_et, latest_et)}: {latest_perc:.2f}%)."
+        elif overall_diff < -1.5:
+            overall_status = 'Declining'
+            status_description = f"Overall performance has declined by {overall_diff:.2f}% ({Config.EXAM_LABELS.get(first_et, first_et)}: {first_perc:.2f}% -> {Config.EXAM_LABELS.get(latest_et, latest_et)}: {latest_perc:.2f}%). Immediate targeted intervention advised."
+        else:
+            overall_status = 'Stable'
+            status_description = f"Overall academic performance is consistent across examinations ({Config.EXAM_LABELS.get(first_et, first_et)}: {first_perc:.2f}%, {Config.EXAM_LABELS.get(latest_et, latest_et)}: {latest_perc:.2f}%, variation within ±1.5%)."
+
+    # 2. Subject-wise Analysis
+    subject_definitions = [
+        ('mathematics', 'Mathematics', 'fa-calculator'),
+        ('english', 'English', 'fa-book-open'),
+        ('science', 'Science', 'fa-atom'),
+        ('computer_science', 'Computer Science', 'fa-laptop-code'),
+        ('database_management', 'Database Management', 'fa-database'),
+        ('web_technology', 'Web Technology', 'fa-globe')
+    ]
+    
+    subject_analysis = []
+    
+    for key, name, icon in subject_definitions:
+        m_cia1 = exam_history['CIA1'][key] if exam_history['CIA1'] else None
+        m_cia2 = exam_history['CIA2'][key] if exam_history['CIA2'] else None
+        m_model = exam_history['MODEL'][key] if exam_history['MODEL'] else None
+        
+        # Chronological list of available values
+        avail_scores = []
+        for et in available_exam_types:
+            avail_scores.append((et, exam_history[et][key]))
+            
+        latest_val = avail_scores[-1][1] if avail_scores else 0.0
+        first_val = avail_scores[0][1] if avail_scores else 0.0
+        
+        diff_1_to_2 = round(m_cia2 - m_cia1, 1) if (m_cia1 is not None and m_cia2 is not None) else None
+        diff_2_to_model = round(m_model - m_cia2, 1) if (m_cia2 is not None and m_model is not None) else None
+        
+        if len(avail_scores) >= 2:
+            sub_diff = round(latest_val - first_val, 1)
+            if sub_diff > 1.5:
+                sub_status = 'Improving'
+            elif sub_diff < -1.5:
+                sub_status = 'Declining'
+            else:
+                sub_status = 'Stable'
+        else:
+            sub_diff = 0.0
+            sub_status = 'Baseline' if len(avail_scores) == 1 else 'Insufficient Data'
+            
+        is_pass = (latest_val >= Config.PASS_MARK_PER_SUBJECT)
+        
+        item = {
+            'key': key,
+            'name': name,
+            'icon': icon,
+            'cia1': m_cia1,
+            'cia2': m_cia2,
+            'model': m_model,
+            'diff_1_to_2': diff_1_to_2,
+            'diff_2_to_model': diff_2_to_model,
+            'overall_diff': sub_diff,
+            'status': sub_status,
+            'latest_score': latest_val,
+            'is_pass': is_pass
+        }
+        subject_analysis.append(item)
+
+    # 3. Practical Recommendations Knowledge Base per Subject
+    recommendations_db = {
+        'mathematics': {
+            'failing': "Focus intensely on foundational arithmetic, algebra, and calculus principles. Dedicate 60-90 minutes daily to working through solved textbook examples step-by-step. Attend faculty tutorial hours for doubt clearance before attempting complex numericals.",
+            'declining': "Performance in Mathematics has declined across assessments. Maintain a personalized formula revision notebook, practice 5-8 numerical problem variations daily on problem topics, and practice solving past semester question papers under 45-minute timed exam conditions.",
+            'borderline': "Focus on high-weightage topics such as differential equations and matrix algebra. Review step-by-step algebraic manipulation to eliminate computational inaccuracies and review test mistakes thoroughly.",
+            'strong': "Continue your stellar performance by attempting advanced university distinction problem sets, exploring discrete mathematical modeling in computing, and peer-mentoring classmates to deepen conceptual mastery."
+        },
+        'database_management': {
+            'failing': "Core relational concepts require immediate remediation. Practice foundational SQL DDL and DML queries (SELECT, JOIN, WHERE, GROUP BY, HAVING) directly in MySQL/SQLite daily. Review relational algebra and primary/foreign key integrity rules.",
+            'declining': "Database scores have dropped across recent exams. Dedicate time to hands-on query writing rather than passive reading. Practice database normalization decompositions (1NF to BCNF) on sample datasets and draw ER diagrams for real-world scenarios.",
+            'borderline': "Solidify intermediate database topics including transaction ACID properties, concurrency control mechanisms (locks, two-phase commit), and index performance optimization to push your score into distinction.",
+            'strong': "Demonstrating solid mastery of relational theory and SQL. Enhance your expertise by exploring database indexing, query execution plan tuning, and NoSQL architecture (MongoDB/Redis) for modern full-stack development."
+        },
+        'computer_science': {
+            'failing': "Foundational programming and algorithmic thinking require urgent attention. Write and execute basic code daily, trace conditional logic and loop variables manually on paper, and review linear data structures (arrays, stacks, queues).",
+            'declining': "Scores have dropped across the examination cycles. Focus on algorithmic problem breakdown, memory management, and object-oriented principles. Implement data structures from scratch rather than reading slides.",
+            'borderline': "Enhance algorithm analysis capabilities (Big-O time and space complexity). Practice recursion, tree traversal algorithms, and divide-and-conquer techniques by coding mini-programs independently.",
+            'strong': "Exceptional computer science acumen. Elevate your competence by solving competitive programming challenges (LeetCode / CodeChef), exploring system design, and building modular software projects."
+        },
+        'web_technology': {
+            'failing': "Fundamental web architecture requires immediate focus. Build simple static web pages from scratch using semantic HTML5 elements, CSS box model styling, and basic JavaScript click event listeners to grasp client-side mechanics.",
+            'declining': "Performance in Web Technology has slipped. Revisit DOM tree manipulation, asynchronous JavaScript execution (Promises, async/await, Fetch API), and responsive layout techniques (CSS Flexbox and Grid).",
+            'borderline': "Strengthen client-server communication paradigms (HTTP request methods, status codes, REST APIs, JSON data exchange). Build a practical end-to-end interactive component (such as dynamic form validation or an API weather card).",
+            'strong': "Superb grasp of web technologies. Maintain your edge by mastering modern component architectures (React, Vue, or Next.js), frontend performance optimization, and progressive web application standards."
+        },
+        'science': {
+            'failing': "Fundamental scientific definitions, SI units, and core physical laws require structured revision. Form a weekly study group, review labeled apparatus diagrams, and clarify core lecture concepts with course faculty.",
+            'declining': "Marks have dropped across examinations. Focus on analytical derivations and numerical problem solving. Double-check unit conversion calculations and link theoretical concepts to real-world engineering applications.",
+            'borderline': "Review experimental procedures, laboratory observations, and standard unit derivations to convert satisfactory marks into distinction. Summarize each module with concise conceptual mind-maps.",
+            'strong': "Outstanding scientific grasp. Maintain momentum by exploring contemporary technological applications of your physics/chemistry modules and practicing higher-order application questions."
+        },
+        'english': {
+            'failing': "English language comprehension and grammatical foundations require structured practice. Dedicate 20 minutes daily to reading formal articles, review sentence structures (subject-verb agreement, active/passive voice), and practice paragraph writing.",
+            'declining': "Scores have trended downward across assessments. Practice technical report writing, expand domain-specific professional vocabulary, and proofread assignments thoroughly to eliminate punctuation and syntax errors.",
+            'borderline': "Elevate formal business communication and technical documentation writing. Practice summarizing engineering articles and answer comprehension questions under timed conditions to improve writing precision.",
+            'strong': "Excellent communication and linguistic skills. Sustain excellence by delivering seminar presentations, publishing technical blog posts, and refining professional technical writing and resume drafting."
+        }
+    }
+
+    # 4. Identify Subjects Requiring Improvement (Prioritized)
+    subjects_needing_improvement = []
+    
+    # Priority 1: Failing subjects (score < 40)
+    for sub in subject_analysis:
+        if not sub['is_pass']:
+            rec_text = recommendations_db[sub['key']]['failing']
+            subjects_needing_improvement.append({
+                'key': sub['key'],
+                'name': sub['name'],
+                'icon': sub['icon'],
+                'latest_score': sub['latest_score'],
+                'overall_diff': sub['overall_diff'],
+                'severity': 'Critical / Failing (< 40)',
+                'severity_class': 'danger',
+                'reason': f"Current score ({sub['latest_score']:.1f}/100) is below the university pass threshold (40.0). Urgent remediation required.",
+                'recommendation': rec_text
+            })
+            
+    # Priority 2: Declining subjects (and not already in failing list)
+    failing_keys = {s['key'] for s in subjects_needing_improvement}
+    for sub in subject_analysis:
+        if sub['key'] not in failing_keys and sub['status'] == 'Declining':
+            rec_text = recommendations_db[sub['key']]['declining']
+            drop_amount = abs(sub['overall_diff'])
+            subjects_needing_improvement.append({
+                'key': sub['key'],
+                'name': sub['name'],
+                'icon': sub['icon'],
+                'latest_score': sub['latest_score'],
+                'overall_diff': sub['overall_diff'],
+                'severity': 'Significant Decline' if drop_amount >= 5.0 else 'Moderate Decline',
+                'severity_class': 'danger' if drop_amount >= 5.0 else 'warning',
+                'reason': f"Performance dropped by {drop_amount:.1f} marks across available exams (from {sub['cia1'] or 'initial'} to {sub['latest_score']:.1f}).",
+                'recommendation': rec_text
+            })
+            
+    # Priority 3: Low or borderline subjects (< 55) not already included
+    included_keys = {s['key'] for s in subjects_needing_improvement}
+    for sub in subject_analysis:
+        if sub['key'] not in included_keys and sub['latest_score'] < 55.0:
+            rec_text = recommendations_db[sub['key']]['borderline']
+            subjects_needing_improvement.append({
+                'key': sub['key'],
+                'name': sub['name'],
+                'icon': sub['icon'],
+                'latest_score': sub['latest_score'],
+                'overall_diff': sub['overall_diff'],
+                'severity': 'Borderline Performance',
+                'severity_class': 'warning',
+                'reason': f"Score of {sub['latest_score']:.1f}/100 is in the low-performance bracket. Academic reinforcement needed to prevent future failure.",
+                'recommendation': rec_text
+            })
+
+    # 5. Identify Strong Subjects
+    strong_subjects = []
+    included_improvement_keys = {s['key'] for s in subjects_needing_improvement}
+    for sub in subject_analysis:
+        if sub['key'] not in included_improvement_keys:
+            if sub['latest_score'] >= 75.0 or (sub['status'] == 'Improving' and sub['latest_score'] >= 65.0):
+                strong_subjects.append({
+                    'key': sub['key'],
+                    'name': sub['name'],
+                    'icon': sub['icon'],
+                    'latest_score': sub['latest_score'],
+                    'overall_diff': sub['overall_diff'],
+                    'achievement': f"Scored {sub['latest_score']:.1f}/100 with consistent mastery." if sub['status'] != 'Improving' else f"Scored {sub['latest_score']:.1f}/100 with a strong positive progression of +{sub['overall_diff']:.1f} marks.",
+                    'recommendation': recommendations_db[sub['key']]['strong']
+                })
+                
+    # 6. Personalized 3-Phase Improvement Plan
+    if subjects_needing_improvement:
+        primary_focus = [s['name'] for s in subjects_needing_improvement[:2]]
+        focus_names = " and ".join(primary_focus)
+        
+        plan_steps = [
+            {
+                'step_num': '1',
+                'title': f'Targeted Remediation in {focus_names}',
+                'icon': 'fa-triangle-exclamation text-danger',
+                'description': f"Allocate 4-5 additional study hours per week strictly to {focus_names}. Focus on high-frequency exam questions, solving core numericals/code samples, and scheduling doubt clarification with course instructors."
+            },
+            {
+                'step_num': '2',
+                'title': 'Active Practice & Mock Exam Drills',
+                'icon': 'fa-pencil-ruler text-primary',
+                'description': "Shift from passive lecture review to active problem solving. Complete at least two timed 45-minute practice tests on weak modules weekly, reviewing every incorrect answer immediately to correct conceptual gaps."
+            },
+            {
+                'step_num': '3',
+                'title': 'Milestone Target & Academic Checkpoint',
+                'icon': 'fa-bullseye text-success',
+                'description': f"Aim for a minimum target improvement of +10 marks in the next examination cycle for {focus_names}. Meet with your faculty mentor fortnightly to verify progress and maintain study momentum in your strong subjects."
+            }
+        ]
+    else:
+        plan_steps = [
+            {
+                'step_num': '1',
+                'title': 'Maintain Excellence & Consistency',
+                'icon': 'fa-star text-warning',
+                'description': "All course performances are currently well-balanced. Maintain your current study routine and ensure continuous revision across all subjects before upcoming university examinations."
+            },
+            {
+                'step_num': '2',
+                'title': 'Advanced Distinction & Project Work',
+                'icon': 'fa-laptop-code text-primary',
+                'description': "Translate high theoretical marks into practical competence. Work on independent technical mini-projects, contribute to academic seminars, or attempt competitive programming problem sets."
+            },
+            {
+                'step_num': '3',
+                'title': 'Peer Mentorship & Milestone Setting',
+                'icon': 'fa-award text-success',
+                'description': "Engage in collaborative study groups. Teaching concepts to peers solidifies your own retention while keeping academic engagement consistently high."
+            }
+        ]
+        
+    # 7. Chart Data for Chart.js
+    chart_labels = [s[1] for s in subject_definitions]
+    chart_datasets = []
+    
+    color_palette = {
+        'CIA1': {'bg': 'rgba(37, 99, 235, 0.75)', 'border': '#2563eb'},
+        'CIA2': {'bg': 'rgba(6, 182, 212, 0.75)', 'border': '#06b6d4'},
+        'MODEL': {'bg': 'rgba(16, 185, 129, 0.75)', 'border': '#10b981'}
+    }
+    
+    for et in available_exam_types:
+        exam_marks = [exam_history[et][k] for k, _, _ in subject_definitions]
+        chart_datasets.append({
+            'label': Config.EXAM_LABELS.get(et, et),
+            'data': exam_marks,
+            'backgroundColor': color_palette[et]['bg'],
+            'borderColor': color_palette[et]['border'],
+            'borderWidth': 1.5,
+            'borderRadius': 4
+        })
+        
+    chart_data = {
+        'labels': chart_labels,
+        'datasets': chart_datasets
+    }
+    
+    return {
+        'student': student_dict,
+        'available_exams': available_exam_types,
+        'exam_history': exam_history,
+        'overall_status': overall_status,
+        'overall_diff': overall_diff,
+        'status_description': status_description,
+        'subject_analysis': subject_analysis,
+        'subjects_needing_improvement': subjects_needing_improvement,
+        'strong_subjects': strong_subjects,
+        'improvement_plan': plan_steps,
+        'chart_data': chart_data
+    }
+
 def get_weak_students(exam_type=None):
     """
     Identifies students needing academic attention based on:

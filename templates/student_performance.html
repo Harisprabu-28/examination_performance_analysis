@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}My Performance Analysis{% endblock %}
+{% block title %}My Academic Performance Analysis{% endblock %}
 {% block page_title %}My Examination Performance & Growth Trend{% endblock %}
-{% block page_subtitle %}Comprehensive score tracking across CIA 1, CIA 2, and Model Examination{% endblock %}
+{% block page_subtitle %}Comprehensive score tracking across CIA 1, CIA 2, and Model Examination with Personalized Improvement Recommendations{% endblock %}
 
 {% block content %}
 <!-- Overall Performance Banner & Trend Status -->
@@ -36,74 +36,151 @@
   </div>
 </div>
 
-<!-- Performance Status Badge -->
-<div class="custom-card mb-4">
-  <div class="custom-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+<!-- Performance Status Alert & Summary -->
+<div class="custom-card mb-4 border-start border-4 {% if student_analysis.overall_status == 'Improving' %}border-success{% elif student_analysis.overall_status == 'Declining' %}border-danger{% else %}border-primary{% endif %} shadow-sm">
+  <div class="custom-card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
-      <h5 class="fw-bold mb-1 text-dark">Overall Academic Performance Standing</h5>
-      <p class="text-muted small mb-0">Calculated dynamically from your actual uploaded examination records</p>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h5 class="fw-bold mb-0 text-dark">Overall Academic Performance Standing</h5>
+        <span class="badge bg-light text-muted border font-monospace">{{ student_analysis.available_exams|join(', ') }} Recorded</span>
+      </div>
+      <p class="text-muted small mb-0">{{ student_analysis.status_description }}</p>
     </div>
     <div>
-      {% if trend.status == 'Improving' %}
-        <span class="badge bg-success fs-5 px-4 py-2 rounded-pill">
-          <i class="fa-solid fa-arrow-trend-up me-2"></i> Performance Status: Improving
+      {% if student_analysis.overall_status == 'Improving' %}
+        <span class="badge bg-success fs-5 px-4 py-2 rounded-pill shadow-sm">
+          <i class="fa-solid fa-arrow-trend-up me-2"></i> Performance Status: Improving (+{{ student_analysis.overall_diff }}%)
         </span>
-      {% elif trend.status == 'Declining' %}
-        <span class="badge bg-danger fs-5 px-4 py-2 rounded-pill">
-          <i class="fa-solid fa-arrow-trend-down me-2"></i> Performance Status: Declining
+      {% elif student_analysis.overall_status == 'Declining' %}
+        <span class="badge bg-danger fs-5 px-4 py-2 rounded-pill shadow-sm">
+          <i class="fa-solid fa-arrow-trend-down me-2"></i> Performance Status: Declining ({{ student_analysis.overall_diff }}%)
+        </span>
+      {% elif student_analysis.overall_status == 'Stable' %}
+        <span class="badge bg-primary fs-5 px-4 py-2 rounded-pill shadow-sm">
+          <i class="fa-solid fa-minus me-2"></i> Performance Status: Stable (±1.5%)
         </span>
       {% else %}
-        <span class="badge bg-primary fs-5 px-4 py-2 rounded-pill">
-          <i class="fa-solid fa-minus me-2"></i> Performance Status: Stable
+        <span class="badge bg-secondary fs-5 px-4 py-2 rounded-pill shadow-sm">
+          <i class="fa-solid fa-circle-info me-2"></i> Status: {{ student_analysis.overall_status }}
         </span>
       {% endif %}
     </div>
   </div>
 </div>
 
-<!-- Subject-Wise Multi-Exam Comparison Table -->
-<div class="custom-card mb-4">
-  <div class="custom-card-header">
-    <h5 class="card-title mb-0"><i class="fa-solid fa-table-cells me-2 text-primary"></i> Subject-Wise Score Progression</h5>
+<!-- Performance Visualization: Multi-Exam Subject Comparison Bar Chart -->
+<div class="custom-card mb-4 border shadow-sm">
+  <div class="custom-card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0 fw-bold">
+      <i class="fa-solid fa-chart-column text-primary me-2"></i> Subject Marks Comparison (CIA 1 vs CIA 2 vs Model Exam)
+    </h5>
+    <span class="badge bg-light text-secondary border">Course Scores (/100)</span>
+  </div>
+  <div class="custom-card-body p-3">
+    <div style="height: 320px; position: relative;">
+      <canvas id="studentMyPerformanceChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Subject-Wise Multi-Exam Progression Table -->
+<div class="custom-card mb-4 border shadow-sm">
+  <div class="custom-card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0 fw-bold">
+      <i class="fa-solid fa-table-cells text-primary me-2"></i> Subject-Wise Multi-Examination Score Progression
+    </h5>
+    <span class="badge bg-light text-dark border">Actual Recorded Marks</span>
   </div>
   <div class="custom-card-body p-0">
     <div class="table-responsive">
-      <table class="table-custom">
+      <table class="table-custom mb-0">
         <thead>
           <tr>
             <th>Subject Name</th>
-            <th>CIA 1 Marks</th>
-            <th>CIA 2 Marks</th>
-            <th>Model Exam Marks</th>
-            <th>Progress Status</th>
+            <th class="text-center">CIA 1 Marks</th>
+            <th class="text-center">CIA 2 Marks</th>
+            <th class="text-center">Model Exam Marks</th>
+            <th class="text-center">CIA 1 &rarr; CIA 2 Change</th>
+            <th class="text-center">CIA 2 &rarr; Model Change</th>
+            <th class="text-center">Overall Net Change</th>
+            <th class="text-center">Progression Status</th>
           </tr>
         </thead>
         <tbody>
-          {% for sub in subject_scores %}
+          {% for sub in student_analysis.subject_analysis %}
             <tr>
-              <td><strong>{{ sub.name }}</strong></td>
-              <td><span class="fw-bold text-primary">{{ sub.cia1 }}</span></td>
               <td>
-                {% if sub.cia2 != 'N/A' %}
-                  <span class="fw-bold text-info">{{ sub.cia2 }}</span>
+                <i class="fa-solid {{ sub.icon }} text-primary me-2"></i>
+                <strong>{{ sub.name }}</strong>
+                {% if not sub.is_pass %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1" style="font-size: 0.7rem;">FAIL (&lt;40)</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if sub.cia1 is not none %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border fs-6 px-3 py-1">{{ "%.1f"|format(sub.cia1) }}</span>
                 {% else %}
                   <span class="text-muted small">Not Uploaded</span>
                 {% endif %}
               </td>
-              <td>
-                {% if sub.model != 'N/A' %}
-                  <span class="fw-bold text-success">{{ sub.model }}</span>
+              <td class="text-center">
+                {% if sub.cia2 is not none %}
+                  <span class="badge bg-info bg-opacity-10 text-info border fs-6 px-3 py-1">{{ "%.1f"|format(sub.cia2) }}</span>
                 {% else %}
                   <span class="text-muted small">Not Uploaded</span>
                 {% endif %}
               </td>
-              <td>
-                {% if sub.diff > 0 %}
-                  <span class="badge bg-success"><i class="fa-solid fa-plus me-1"></i> +{{ sub.diff }} (Improved)</span>
-                {% elif sub.diff < 0 %}
-                  <span class="badge bg-danger"><i class="fa-solid fa-minus me-1"></i> {{ sub.diff }} (Dropped)</span>
+              <td class="text-center">
+                {% if sub.model is not none %}
+                  <span class="badge bg-success bg-opacity-10 text-success border fs-6 px-3 py-1">{{ "%.1f"|format(sub.model) }}</span>
                 {% else %}
-                  <span class="badge bg-secondary">Consistent</span>
+                  <span class="text-muted small">Not Uploaded</span>
+                {% endif %}
+              </td>
+              <td class="text-center font-monospace">
+                {% if sub.diff_1_to_2 is not none %}
+                  {% if sub.diff_1_to_2 > 0 %}
+                    <span class="text-success fw-bold"><i class="fa-solid fa-arrow-up me-1"></i>+{{ sub.diff_1_to_2 }}</span>
+                  {% elif sub.diff_1_to_2 < 0 %}
+                    <span class="text-danger fw-bold"><i class="fa-solid fa-arrow-down me-1"></i>{{ sub.diff_1_to_2 }}</span>
+                  {% else %}
+                    <span class="text-secondary fw-semibold">0.0</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="text-center font-monospace">
+                {% if sub.diff_2_to_model is not none %}
+                  {% if sub.diff_2_to_model > 0 %}
+                    <span class="text-success fw-bold"><i class="fa-solid fa-arrow-up me-1"></i>+{{ sub.diff_2_to_model }}</span>
+                  {% elif sub.diff_2_to_model < 0 %}
+                    <span class="text-danger fw-bold"><i class="fa-solid fa-arrow-down me-1"></i>{{ sub.diff_2_to_model }}</span>
+                  {% else %}
+                    <span class="text-secondary fw-semibold">0.0</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="text-center font-monospace">
+                {% if sub.overall_diff > 0 %}
+                  <span class="badge bg-success px-2 py-1"><i class="fa-solid fa-arrow-trend-up me-1"></i>+{{ sub.overall_diff }}</span>
+                {% elif sub.overall_diff < 0 %}
+                  <span class="badge bg-danger px-2 py-1"><i class="fa-solid fa-arrow-trend-down me-1"></i>{{ sub.overall_diff }}</span>
+                {% else %}
+                  <span class="badge bg-secondary px-2 py-1"><i class="fa-solid fa-minus me-1"></i>0.0</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if sub.status == 'Improving' %}
+                  <span class="badge bg-success px-3 py-1"><i class="fa-solid fa-arrow-trend-up me-1"></i> Improving</span>
+                {% elif sub.status == 'Declining' %}
+                  <span class="badge bg-danger px-3 py-1"><i class="fa-solid fa-arrow-trend-down me-1"></i> Declining</span>
+                {% elif sub.status == 'Stable' %}
+                  <span class="badge bg-secondary px-3 py-1"><i class="fa-solid fa-minus me-1"></i> Stable</span>
+                {% else %}
+                  <span class="badge bg-light text-dark border">{{ sub.status }}</span>
                 {% endif %}
               </td>
             </tr>
@@ -113,4 +190,190 @@
     </div>
   </div>
 </div>
+
+<!-- Targeted Guidance: Subjects Requiring Improvement vs Strong Subjects -->
+<div class="row g-4 mb-4">
+  <!-- Left: Subjects Requiring Improvement -->
+  <div class="col-lg-6">
+    <div class="custom-card h-100 border-start border-4 border-danger shadow-sm">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title text-danger mb-0 fw-bold">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i> Subjects Requiring Improvement
+        </h5>
+        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+          {{ student_analysis.subjects_needing_improvement|length }} Identified
+        </span>
+      </div>
+
+      <div class="custom-card-body p-3 d-flex flex-column gap-3">
+        {% for item in student_analysis.subjects_needing_improvement %}
+          <div class="rec-subject-card {% if item.severity_class == 'danger' %}declining{% else %}stable{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark fs-6">
+                <i class="fa-solid {{ item.icon }} text-danger me-1"></i> {{ item.name }}
+              </span>
+              <span class="badge bg-{{ item.severity_class }} px-2 py-1">
+                {{ item.severity }}
+              </span>
+            </div>
+
+            <div class="p-2 rounded bg-light border mb-2 small text-danger fw-semibold">
+              <i class="fa-solid fa-circle-exclamation me-1"></i> <strong>Reason Identified:</strong> {{ item.reason }}
+            </div>
+
+            <div class="small text-secondary">
+              <strong class="text-dark d-block mb-1"><i class="fa-solid fa-lightbulb text-warning me-1"></i> Practical Actionable Recommendation:</strong>
+              <div class="p-2 rounded bg-white border border-light shadow-sm text-dark">
+                {{ item.recommendation }}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-success">
+            <i class="fa-solid fa-circle-check fs-1 mb-2"></i>
+            <h6 class="fw-bold">No High-Risk Courses Identified!</h6>
+            <p class="small text-muted mb-0">You are performing well across all evaluated courses with no failing or dropping marks.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Strong Subjects -->
+  <div class="col-lg-6">
+    <div class="custom-card h-100 border-start border-4 border-success shadow-sm">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title text-success mb-0 fw-bold">
+          <i class="fa-solid fa-award me-2"></i> Strong Subjects & Academic Excellence
+        </h5>
+        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+          {{ student_analysis.strong_subjects|length }} Identified
+        </span>
+      </div>
+
+      <div class="custom-card-body p-3 d-flex flex-column gap-3">
+        {% for item in student_analysis.strong_subjects %}
+          <div class="rec-subject-card strong">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark fs-6">
+                <i class="fa-solid {{ item.icon }} text-success me-1"></i> {{ item.name }}
+              </span>
+              <span class="badge bg-success px-2 py-1">
+                Score: {{ "%.1f"|format(item.latest_score) }}/100
+              </span>
+            </div>
+
+            <div class="p-2 rounded bg-light border mb-2 small text-success fw-semibold">
+              <i class="fa-solid fa-circle-check me-1"></i> <strong>Achievement:</strong> {{ item.achievement }}
+            </div>
+
+            <div class="small text-secondary">
+              <strong class="text-dark d-block mb-1"><i class="fa-solid fa-circle-arrow-up text-primary me-1"></i> Advice to Maintain Excellence:</strong>
+              <div class="p-2 rounded bg-white border border-light shadow-sm text-dark">
+                {{ item.recommendation }}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            <i class="fa-solid fa-chart-line fs-1 mb-2 text-secondary"></i>
+            <h6 class="fw-bold">Steady Performance Band</h6>
+            <p class="small text-muted mb-0">You are maintaining moderate pass marks. Target score enhancements of +10 marks to enter the distinction bracket.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Personalized 3-Phase Improvement Action Plan -->
+<div class="custom-card border-0 bg-light p-3 rounded-3 border mb-4">
+  <h5 class="fw-bold text-dark mb-3">
+    <i class="fa-solid fa-list-check text-primary me-2"></i> Your Personalized Academic Improvement Plan
+  </h5>
+  <div class="row g-3">
+    {% for step in student_analysis.improvement_plan %}
+      <div class="col-md-4">
+        <div class="action-plan-step h-100">
+          <div class="action-step-num">{{ step.step_num }}</div>
+          <div>
+            <h6 class="fw-bold mb-1 text-dark" style="font-size: 0.95rem;">
+              <i class="fa-solid {{ step.icon }} me-1"></i> {{ step.title }}
+            </h6>
+            <p class="text-muted small mb-0" style="line-height: 1.45;">
+              {{ step.description }}
+            </p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const chartCanvas = document.getElementById('studentMyPerformanceChart');
+  if (!chartCanvas) return;
+
+  const rawData = {{ student_analysis.chart_data|tojson }};
+  
+  new Chart(chartCanvas, {
+    type: 'bar',
+    data: rawData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            font: { family: 'Plus Jakarta Sans', weight: 600, size: 12 },
+            padding: 16
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleFont: { family: 'Plus Jakarta Sans', weight: 700 },
+          bodyFont: { family: 'Plus Jakarta Sans' },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.raw} / 100`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0,
+          max: 100,
+          ticks: {
+            stepSize: 20,
+            font: { family: 'Plus Jakarta Sans', size: 11 }
+          },
+          grid: {
+            color: 'rgba(226, 232, 240, 0.7)'
+          },
+          title: {
+            display: true,
+            text: 'Marks Scored / 100',
+            font: { family: 'Plus Jakarta Sans', weight: 600, size: 11 }
+          }
+        },
+        x: {
+          ticks: {
+            font: { family: 'Plus Jakarta Sans', weight: 600, size: 11 }
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  });
+});
+</script>
 {% endblock %}

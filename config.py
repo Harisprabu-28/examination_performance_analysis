@@ -7,6 +7,9 @@ class Config:
     # Security
     SECRET_KEY = os.environ.get('SECRET_KEY', 'anti-dmt-secret-key-2026-exam-ml-secure')
     
+    # Institution
+    INSTITUTION_NAME = 'M. Kumarasamy College of Engineering'
+    
     # Directories
     DB_DIR = os.path.join(BASE_DIR, 'database')
     DB_PATH = os.path.join(DB_DIR, 'database.db')

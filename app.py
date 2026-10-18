@@ -12,7 +12,8 @@ import pandas as pd
 from config import Config
 from database import (
     init_db, get_db_connection, calculate_exam_metrics,
-    get_student_exam_history, calculate_student_trend, get_weak_students
+    get_student_exam_history, calculate_student_trend, get_weak_students,
+    get_detailed_student_performance_analysis
 )
 from ml_model import PerformancePredictor, get_ml_prediction, get_student_multi_exam_prediction
 from report_generator import generate_student_pdf_report
@@ -878,7 +879,7 @@ def student_marks():
 @app.route('/student/performance')
 @student_required
 def student_performance():
-    return redirect(url_for('student_dashboard'))
+    return redirect(url_for('student_performance_page'))
 
 @app.route('/student/prediction')
 @student_required
@@ -1277,6 +1278,18 @@ def performance_analysis():
     weak_students = get_weak_students(weak_exam_filter)
     conn.close()
     
+    student_id_arg = request.args.get('student_id')
+    selected_student_id = None
+    if student_id_arg:
+        try:
+            selected_student_id = int(student_id_arg)
+        except (ValueError, TypeError):
+            selected_student_id = None
+    elif students:
+        selected_student_id = students[0]['id']
+        
+    student_analysis = get_detailed_student_performance_analysis(selected_student_id) if selected_student_id else None
+    
     return render_template(
         'performance_analysis.html',
         active_page='performance_analysis',
@@ -1284,7 +1297,10 @@ def performance_analysis():
         exam_averages=exam_averages,
         subject_comparisons=subject_comparisons,
         student_trends=student_trends,
-        weak_students=weak_students
+        weak_students=weak_students,
+        students=students,
+        selected_student_id=selected_student_id,
+        student_analysis=student_analysis
     )
 
 @app.route('/student/exam/<exam_type>')
@@ -1344,11 +1360,14 @@ def student_performance_page():
             'diff': diff
         })
         
+    student_analysis = get_detailed_student_performance_analysis(student_id)
+    
     return render_template(
         'student_performance.html',
         active_page='student_performance',
         trend=trend,
-        subject_scores=subject_scores
+        subject_scores=subject_scores,
+        student_analysis=student_analysis
     )
 
 # ==============================================================================

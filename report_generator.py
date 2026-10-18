@@ -103,7 +103,7 @@ def generate_student_pdf_report(student, marks_record, ml_prediction=None):
     story = []
     
     # Header / Title Banner
-    story.append(Paragraph("INSTITUTE OF HIGHER EDUCATION & TECHNOLOGY", title_style))
+    story.append(Paragraph("M. Kumarasamy College of Engineering", title_style))
     story.append(Paragraph("OFFICIAL EXAMINATION PERFORMANCE & ML ANALYSIS REPORT", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#2563eb'), spaceBefore=0, spaceAfter=12))
     
