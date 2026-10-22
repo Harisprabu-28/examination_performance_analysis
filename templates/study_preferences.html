@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Study Preferences{% endblock %}
+{% block page_title %}Study Schedule Preferences{% endblock %}
+{% block page_subtitle %}Customize your available study days, daily study hours, session length, and smart reminder timings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="custom-card">
+      <div class="custom-card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <i class="fa-solid fa-sliders text-primary me-2"></i> Configure Your Study Routine
+        </h5>
+        <a href="{{ url_for('student_study_planner') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+          <i class="fa-solid fa-arrow-left me-1"></i> Back to Planner
+        </a>
+      </div>
+
+      <div class="custom-card-body p-4">
+        <form method="POST" action="{{ url_for('student_study_preferences') }}">
+          <!-- Section 1: Available Study Days -->
+          <div class="mb-4">
+            <label class="form-label fw-bold d-block mb-1">
+              <i class="fa-solid fa-calendar-check text-primary me-1"></i> Available Study Days
+            </label>
+            <p class="text-muted small mb-3">Select the days each week when you can dedicate time to study sessions:</p>
+            
+            <div class="row g-2">
+              {% set all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+              {% for day in all_days %}
+                <div class="col-md-3 col-6">
+                  <div class="form-check p-3 border rounded-3 h-100 bg-light d-flex align-items-center">
+                    <input class="form-check-input me-2 mt-0" type="checkbox" name="available_days" value="{{ day }}" id="day_{{ day }}"
+                      {% if day in preferences.available_days %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold cursor-pointer w-100 mb-0" for="day_{{ day }}">
+                      {{ day }}
+                    </label>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Section 2: Preferred Daily Study Hours -->
+          <div class="mb-4">
+            <label class="form-label fw-bold d-block mb-1">
+              <i class="fa-solid fa-clock text-primary me-1"></i> Study Time Window
+            </label>
+            <p class="text-muted small mb-3">Specify the typical timeframe during which study sessions should be placed:</p>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Preferred Start Time</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-sun text-warning"></i></span>
+                  <input type="time" name="preferred_start_time" class="form-control" value="{{ preferences.preferred_start_time }}" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Preferred End Time</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-moon text-primary"></i></span>
+                  <input type="time" name="preferred_end_time" class="form-control" value="{{ preferences.preferred_end_time }}" required>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Section 3: Session and Break Durations -->
+          <div class="mb-4">
+            <label class="form-label fw-bold d-block mb-1">
+              <i class="fa-solid fa-stopwatch text-primary me-1"></i> Session & Break Durations
+            </label>
+            <p class="text-muted small mb-3">Customize Pomodoro-style focused intervals and rest periods:</p>
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Max Daily Study Time (Minutes)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-hourglass text-muted"></i></span>
+                  <input type="number" name="max_daily_duration_minutes" class="form-control" value="{{ preferences.max_daily_duration_minutes }}" min="30" max="600" step="15" required>
+                  <span class="input-group-text bg-light text-muted">mins</span>
+                </div>
+                <small class="text-muted">e.g. 180 min = 3 hours</small>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Focus Session Length</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-brain text-primary"></i></span>
+                  <select name="session_duration_minutes" class="form-select">
+                    <option value="30" {% if preferences.session_duration_minutes == 30 %}selected{% endif %}>30 Minutes</option>
+                    <option value="45" {% if preferences.session_duration_minutes == 45 %}selected{% endif %}>45 Minutes (Recommended)</option>
+                    <option value="60" {% if preferences.session_duration_minutes == 60 %}selected{% endif %}>60 Minutes</option>
+                    <option value="90" {% if preferences.session_duration_minutes == 90 %}selected{% endif %}>90 Minutes</option>
+                  </select>
+                </div>
+                <small class="text-muted">Continuous focus period</small>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Rest Break Duration</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-mug-saucer text-warning"></i></span>
+                  <select name="break_duration_minutes" class="form-select">
+                    <option value="5" {% if preferences.break_duration_minutes == 5 %}selected{% endif %}>5 Minutes</option>
+                    <option value="10" {% if preferences.break_duration_minutes == 10 %}selected{% endif %}>10 Minutes</option>
+                    <option value="15" {% if preferences.break_duration_minutes == 15 %}selected{% endif %}>15 Minutes (Optimal)</option>
+                    <option value="20" {% if preferences.break_duration_minutes == 20 %}selected{% endif %}>20 Minutes</option>
+                  </select>
+                </div>
+                <small class="text-muted">Interval between sessions</small>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Section 4: Smart Reminder Timing -->
+          <div class="mb-4">
+            <label class="form-label fw-bold d-block mb-1">
+              <i class="fa-solid fa-bell text-warning me-1"></i> Smart Notification Reminder
+            </label>
+            <p class="text-muted small mb-3">How early would you like the portal notification reminder to pop up before each session starts?</p>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fa-solid fa-clock-rotate-left text-danger"></i></span>
+                  <select name="reminder_minutes_before" class="form-select">
+                    <option value="5" {% if preferences.reminder_minutes_before == 5 %}selected{% endif %}>5 minutes before</option>
+                    <option value="10" {% if preferences.reminder_minutes_before == 10 %}selected{% endif %}>10 minutes before</option>
+                    <option value="15" {% if preferences.reminder_minutes_before == 15 %}selected{% endif %}>15 minutes before (Recommended)</option>
+                    <option value="30" {% if preferences.reminder_minutes_before == 30 %}selected{% endif %}>30 minutes before</option>
+                    <option value="60" {% if preferences.reminder_minutes_before == 60 %}selected{% endif %}>1 hour before</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+            <a href="{{ url_for('student_study_planner') }}" class="btn btn-light rounded-pill px-4">Cancel</a>
+            <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
+              <i class="fa-solid fa-floppy-disk me-1"></i> Save Preferences
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

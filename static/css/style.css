@@ -874,3 +874,195 @@ body {
   font-size: 0.95rem;
 }
 
+/* ==============================================================================
+   Notification Bell & Panel (Module 4)
+   ============================================================================== */
+.notification-bell-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-notification-bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-notification-bell:hover {
+  background: var(--bg-surface-secondary);
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #ffffff;
+  animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: none;
+  z-index: 1050;
+  overflow: hidden;
+  animation: slideDownFade 0.2s ease-out forwards;
+}
+
+.notification-panel.show {
+  display: block;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+}
+
+.notification-panel-body {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background: #f8fafc;
+}
+
+.notification-item.unread {
+  background: rgba(37, 99, 235, 0.04);
+  border-left: 3px solid var(--primary);
+}
+
+.notification-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.notification-icon-box.reminder {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.notification-icon-box.alert {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.notification-icon-box.info {
+  background: rgba(37, 99, 235, 0.15);
+  color: #2563eb;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+
+.notification-item-msg {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-bottom: 0.25rem;
+}
+
+.notification-item-time {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+/* ==============================================================================
+   Study Planner Specific UI Tokens
+   ============================================================================== */
+.session-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: #ffffff;
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.shadow-xs {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+

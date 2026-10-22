@@ -17,6 +17,16 @@ from database import (
 )
 from ml_model import PerformancePredictor, get_ml_prediction, get_student_multi_exam_prediction
 from report_generator import generate_student_pdf_report
+from study_planner import (
+    init_study_planner_tables, analyze_weak_subjects, get_study_preferences,
+    save_study_preferences, generate_study_timetable, get_student_schedule,
+    get_today_schedule, get_upcoming_sessions, update_session_status,
+    get_study_progress, generate_reminders, check_missed_sessions,
+    get_student_notifications, get_unread_notification_count,
+    mark_notification_read, mark_all_notifications_read,
+    get_study_recommendations, get_student_study_overview_for_faculty,
+    start_reminder_scheduler
+)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = Config.SECRET_KEY
@@ -25,6 +35,10 @@ CORS(app)
 # Ensure database is initialized on startup
 with app.app_context():
     init_db()
+    init_study_planner_tables()
+
+# Start background reminder scheduler
+_reminder_scheduler = start_reminder_scheduler(app)
 
 # ==============================================================================
 # Authentication & Access Control Decorators
@@ -859,6 +873,18 @@ def student_dashboard():
     elif all_marks:
         ml_standing = get_student_multi_exam_prediction(student_id)
         
+    # Study planner integration
+    try:
+        generate_reminders(student_id)
+        check_missed_sessions()
+    except Exception:
+        pass
+
+    study_analysis = analyze_weak_subjects(student_id)
+    today_study_sessions = get_today_schedule(student_id)
+    study_progress = get_study_progress(student_id)
+    upcoming_study_sessions = get_upcoming_sessions(student_id, limit=3)
+
     return render_template(
         'student_dashboard.html',
         active_page='student_dashboard',
@@ -868,7 +894,11 @@ def student_dashboard():
         active_mark=active_mark,
         latest_mark=active_mark or (all_marks[0] if all_marks else None),
         all_marks=all_marks,
-        ml_standing=ml_standing
+        ml_standing=ml_standing,
+        study_analysis=study_analysis,
+        today_study_sessions=today_study_sessions,
+        study_progress=study_progress,
+        upcoming_study_sessions=upcoming_study_sessions
     )
 
 @app.route('/student/marks')
@@ -1369,6 +1399,262 @@ def student_performance_page():
         subject_scores=subject_scores,
         student_analysis=student_analysis
     )
+
+# ==============================================================================
+# Template Context Processor for Notification Count
+# ==============================================================================
+
+@app.context_processor
+def inject_notification_count():
+    """Makes unread notification count available in all templates."""
+    if session.get('role') == 'student' and 'user_id' in session:
+        try:
+            count = get_unread_notification_count(session['user_id'])
+            return {'unread_notification_count': count}
+        except Exception:
+            return {'unread_notification_count': 0}
+    return {'unread_notification_count': 0}
+
+# ==============================================================================
+# Study Planner Routes — Student Portal
+# ==============================================================================
+
+@app.route('/student/study-planner')
+@student_required
+def student_study_planner():
+    """Main study planner page for students."""
+    student_id = session.get('user_id')
+    conn = get_db_connection()
+    student = conn.execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+    conn.close()
+
+    # Generate reminders on page load as fallback
+    try:
+        generate_reminders(student_id)
+        check_missed_sessions()
+    except Exception:
+        pass
+
+    analysis = analyze_weak_subjects(student_id)
+    prefs = get_study_preferences(student_id)
+    today_sessions = get_today_schedule(student_id)
+    upcoming = get_upcoming_sessions(student_id, limit=5)
+    progress = get_study_progress(student_id)
+    recommendations = get_study_recommendations(student_id)
+
+    # Get the current week schedule
+    week_schedule = get_student_schedule(student_id, view='week')
+
+    return render_template(
+        'study_planner.html',
+        active_page='study_planner',
+        student=student,
+        analysis=analysis,
+        preferences=prefs,
+        today_sessions=today_sessions,
+        upcoming_sessions=upcoming,
+        progress=progress,
+        recommendations=recommendations,
+        week_schedule=week_schedule
+    )
+
+
+@app.route('/student/study-planner/preferences', methods=['GET', 'POST'])
+@student_required
+def student_study_preferences():
+    """Study preferences configuration page."""
+    student_id = session.get('user_id')
+
+    if request.method == 'POST':
+        days = request.form.getlist('available_days')
+        if not days:
+            days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+        data = {
+            'available_days': days,
+            'preferred_start_time': request.form.get('preferred_start_time', '18:00'),
+            'preferred_end_time': request.form.get('preferred_end_time', '22:00'),
+            'max_daily_duration_minutes': request.form.get('max_daily_duration_minutes', 240),
+            'session_duration_minutes': request.form.get('session_duration_minutes', 45),
+            'break_duration_minutes': request.form.get('break_duration_minutes', 15),
+            'reminder_minutes_before': request.form.get('reminder_minutes_before', 15)
+        }
+
+        save_study_preferences(student_id, data)
+        flash("Study preferences saved successfully!", "success")
+        return redirect(url_for('student_study_planner'))
+
+    prefs = get_study_preferences(student_id)
+    return render_template(
+        'study_preferences.html',
+        active_page='study_preferences',
+        preferences=prefs
+    )
+
+
+@app.route('/student/study-planner/generate', methods=['POST'])
+@student_required
+def student_generate_timetable():
+    """Generates a new study timetable."""
+    student_id = session.get('user_id')
+    result = generate_study_timetable(student_id)
+
+    if result.get('message'):
+        flash(result['message'], "warning")
+    else:
+        flash(f"Study timetable generated successfully! {result.get('total_sessions', 0)} sessions scheduled.", "success")
+
+    return redirect(url_for('student_study_planner'))
+
+
+@app.route('/student/study-planner/schedule')
+@student_required
+def student_view_schedule():
+    """View detailed schedule with different views."""
+    student_id = session.get('user_id')
+    view = request.args.get('view', 'week')
+    target_date = request.args.get('date')
+
+    schedule = get_student_schedule(student_id, view=view, target_date=target_date)
+    prefs = get_study_preferences(student_id)
+    progress = get_study_progress(student_id)
+
+    return render_template(
+        'study_schedule.html',
+        active_page='study_schedule',
+        schedule=schedule,
+        current_view=view,
+        target_date=target_date,
+        preferences=prefs,
+        progress=progress
+    )
+
+
+@app.route('/api/study-planner/session/<int:session_id>/status', methods=['POST'])
+@student_required
+def api_update_session_status(session_id):
+    """API to update a study session's status."""
+    student_id = session.get('user_id')
+    data = request.get_json() or {}
+    new_status = data.get('status')
+
+    if not new_status:
+        return jsonify({'status': 'error', 'message': 'Status is required.'}), 400
+
+    success, message = update_session_status(session_id, student_id, new_status)
+
+    if success:
+        return jsonify({'status': 'success', 'message': message})
+    else:
+        return jsonify({'status': 'error', 'message': message}), 400
+
+
+@app.route('/api/study-planner/session/<int:session_id>/reschedule', methods=['POST'])
+@student_required
+def api_reschedule_session(session_id):
+    """API to reschedule a study session."""
+    student_id = session.get('user_id')
+    data = request.get_json() or {}
+    new_date = data.get('new_date')
+    new_start_time = data.get('new_start_time')
+
+    if not new_date or not new_start_time:
+        return jsonify({'status': 'error', 'message': 'New date and start time are required.'}), 400
+
+    conn = get_db_connection()
+    sess = conn.execute(
+        "SELECT * FROM study_schedule WHERE id = ? AND student_id = ?",
+        (session_id, student_id)
+    ).fetchone()
+
+    if not sess:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Session not found.'}), 404
+
+    # Calculate new end time based on session duration
+    prefs = get_study_preferences(student_id)
+    session_minutes = prefs['session_duration_minutes']
+    new_start = datetime.strptime(new_start_time, '%H:%M')
+    new_end = new_start + timedelta(minutes=session_minutes)
+
+    conn.execute('''
+        UPDATE study_schedule SET
+            scheduled_date = ?, start_time = ?, end_time = ?, status = 'Scheduled'
+        WHERE id = ? AND student_id = ?
+    ''', (new_date, new_start_time, new_end.strftime('%H:%M'), session_id, student_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'status': 'success', 'message': 'Session rescheduled successfully.'})
+
+
+# ==============================================================================
+# Notification Routes
+# ==============================================================================
+
+@app.route('/api/notifications')
+@student_required
+def api_get_notifications():
+    """API to get student notifications."""
+    student_id = session.get('user_id')
+    notifications = get_student_notifications(student_id)
+    unread_count = get_unread_notification_count(student_id)
+    return jsonify({
+        'status': 'success',
+        'notifications': notifications,
+        'unread_count': unread_count
+    })
+
+
+@app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
+@student_required
+def api_mark_notification_read(notification_id):
+    """API to mark a notification as read."""
+    student_id = session.get('user_id')
+    mark_notification_read(notification_id, student_id)
+    return jsonify({'status': 'success'})
+
+
+@app.route('/api/notifications/read-all', methods=['POST'])
+@student_required
+def api_mark_all_read():
+    """API to mark all notifications as read."""
+    student_id = session.get('user_id')
+    mark_all_notifications_read(student_id)
+    return jsonify({'status': 'success'})
+
+
+# ==============================================================================
+# Faculty Study Planner Monitoring Routes
+# ==============================================================================
+
+@app.route('/admin/student-study-plan/<int:student_id>')
+@admin_required
+def admin_view_student_study_plan(student_id):
+    """Faculty view of a student's study plan."""
+    conn = get_db_connection()
+    student = conn.execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+    conn.close()
+
+    if not student:
+        flash("Student not found.", "danger")
+        return redirect(url_for('students_list'))
+
+    overview = get_student_study_overview_for_faculty(student_id)
+    analysis = analyze_weak_subjects(student_id)
+    progress = get_study_progress(student_id)
+    schedule = get_student_schedule(student_id, view='all')
+
+    return render_template(
+        'admin_study_plan.html',
+        active_page='students',
+        student=student,
+        overview=overview,
+        analysis=analysis,
+        progress=progress,
+        schedule=schedule
+    )
+
 
 # ==============================================================================
 # Error Handlers

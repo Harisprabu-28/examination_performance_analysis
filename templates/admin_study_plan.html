@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Student Study Plan — {{ student.name }}{% endblock %}
+{% block page_title %}Student Study Plan & Compliance Monitoring{% endblock %}
+{% block page_subtitle %}Faculty oversight of student's AI-generated study timetable, adherence progress, and weak subject recovery{% endblock %}
+
+{% block content %}
+<!-- Back Navigation Strip -->
+<div class="mb-3 d-flex justify-content-between align-items-center">
+  <a href="{{ url_for('students_list') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+    <i class="fa-solid fa-arrow-left me-1"></i> Back to Student Directory
+  </a>
+  <a href="{{ url_for('student_detail', student_id=student.id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+    <i class="fa-solid fa-id-card me-1"></i> View Full Marks Profile
+  </a>
+</div>
+
+<!-- Student Profile Banner -->
+<div class="custom-card mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff;">
+  <div class="custom-card-body p-4">
+    <div class="row align-items-center g-3">
+      <div class="col-auto">
+        <div class="user-avatar" style="width: 60px; height: 60px; font-size: 1.4rem; background: linear-gradient(135deg, #6366f1, #4338ca);">
+          {{ student.name[:2]|upper }}
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h3 class="fw-bold mb-0 text-white">{{ student.name }}</h3>
+          <span class="badge bg-primary font-monospace">{{ student.register_number }}</span>
+          <span class="badge bg-light text-dark">{{ student.department }}</span>
+        </div>
+        <div class="text-white-50 small d-flex flex-wrap gap-3">
+          <span><i class="fa-solid fa-graduation-cap me-1"></i> {{ student.year }} • {{ student.semester }} (Section {{ student.section }})</span>
+          <span><i class="fa-solid fa-envelope me-1"></i> {{ student.email }}</span>
+        </div>
+      </div>
+      <div class="col-auto text-end">
+        <span class="badge bg-warning text-dark px-3 py-2 fw-bold">
+          <i class="fa-solid fa-brain me-1"></i> AI Study Plan Active
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Compliance & Adherence Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-success">
+      <small class="text-muted text-uppercase fw-bold">Adherence Rate</small>
+      <h3 class="fw-bold mb-0 text-success mt-1">{{ progress.completion_rate }}%</h3>
+      <div class="progress mt-2" style="height: 6px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress.completion_rate }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-primary">
+      <small class="text-muted text-uppercase fw-bold">Total Sessions</small>
+      <h3 class="fw-bold mb-0 text-primary mt-1">{{ progress.total_sessions }}</h3>
+      <small class="text-muted">{{ progress.completed_sessions }} completed</small>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-danger">
+      <small class="text-muted text-uppercase fw-bold">Missed Sessions</small>
+      <h3 class="fw-bold mb-0 text-danger mt-1">{{ progress.missed_sessions }}</h3>
+      <small class="text-muted">Unattended or skipped</small>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-warning">
+      <small class="text-muted text-uppercase fw-bold">Weak Subjects</small>
+      <h3 class="fw-bold mb-0 text-warning mt-1">{{ analysis.weak_subjects|length }}</h3>
+      <small class="text-muted">{{ analysis.high_priority_count }} high priority</small>
+    </div>
+  </div>
+</div>
+
+<!-- Weak Subject Diagnostic for Faculty -->
+<div class="custom-card mb-4">
+  <div class="custom-card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0">
+      <i class="fa-solid fa-stethoscope text-primary me-2"></i> Academic Weakness & Focus Areas
+    </h5>
+  </div>
+  <div class="custom-card-body p-0">
+    <div class="table-responsive">
+      <table class="table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th class="text-center">Average Score</th>
+            <th class="text-center">Trend Status</th>
+            <th class="text-center">Study Priority</th>
+            <th class="text-end pe-4">Allocated Revision Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subj in analysis.subjects %}
+            <tr class="{% if subj.is_weak %}table-danger bg-opacity-10{% endif %}">
+              <td>
+                <strong>{{ subj.name }}</strong>
+                {% if subj.is_weak %}
+                  <span class="badge bg-danger ms-2">Weak Area</span>
+                {% endif %}
+              </td>
+              <td class="text-center fw-bold {% if subj.average < 50 %}text-danger{% elif subj.average < 65 %}text-warning{% else %}text-success{% endif %}">
+                {{ "%.1f"|format(subj.average) }}%
+              </td>
+              <td class="text-center">
+                {% if subj.trend_status == 'Declining' %}
+                  <span class="badge bg-danger"><i class="fa-solid fa-arrow-trend-down me-1"></i> Declining</span>
+                {% elif subj.trend_status == 'Improving' %}
+                  <span class="badge bg-success"><i class="fa-solid fa-arrow-trend-up me-1"></i> Improving</span>
+                {% else %}
+                  <span class="badge bg-secondary"><i class="fa-solid fa-minus me-1"></i> Stable</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <span class="badge {% if subj.priority == 'High' %}bg-danger{% elif subj.priority == 'Medium' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                  {{ subj.priority }}
+                </span>
+              </td>
+              <td class="text-end pe-4 fw-semibold">
+                {{ subj.allocated_hours_per_week }} hrs/week
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Scheduled Sessions Table -->
+<div class="custom-card">
+  <div class="custom-card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0">
+      <i class="fa-solid fa-calendar-days text-primary me-2"></i> All Scheduled Sessions ({{ schedule|length }})
+    </h5>
+  </div>
+  <div class="custom-card-body p-0">
+    {% if schedule %}
+      <div class="table-responsive">
+        <table class="table-custom mb-0">
+          <thead>
+            <tr>
+              <th>Date & Day</th>
+              <th>Time</th>
+              <th>Subject</th>
+              <th>Planned Activity</th>
+              <th class="text-center">Priority</th>
+              <th class="text-center">Status</th>
+              <th class="text-end pe-4">Completed On</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in schedule %}
+              <tr>
+                <td><strong>{{ s.scheduled_date }}</strong> <small class="text-muted">({{ s.day_name }})</small></td>
+                <td><span class="font-monospace text-muted">{{ s.start_time }} – {{ s.end_time }}</span></td>
+                <td><strong class="text-primary">{{ s.subject_name }}</strong></td>
+                <td><span class="text-secondary small">{{ s.study_activity }}</span></td>
+                <td class="text-center">
+                  <span class="badge {% if s.priority == 'High' %}bg-danger{% elif s.priority == 'Medium' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                    {{ s.priority }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <span class="badge {% if s.status == 'Completed' %}bg-success{% elif s.status == 'Missed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ s.status }}
+                  </span>
+                </td>
+                <td class="text-end pe-4 text-muted small">
+                  {{ s.completion_timestamp or '—' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="fa-regular fa-calendar-xmark fs-2 mb-2 opacity-50"></i>
+        <p class="mb-0">The student has not generated a study plan yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

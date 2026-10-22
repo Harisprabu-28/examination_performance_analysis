@@ -43,6 +43,7 @@ examination-performance-analysis/
 ├── database.py                # SQLite database management, seeding & calculations
 ├── ml_model.py                # Random Forest predictor & inference engine
 ├── report_generator.py        # ReportLab PDF report generator
+├── study_planner.py           # AI Study Planner & Smart Reminders engine
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # Complete documentation & run instructions
 │
@@ -57,12 +58,12 @@ examination-performance-analysis/
 │
 ├── static/
 │   ├── css/
-│   │   └── style.css          # Modern academic UI stylesheet
+│   │   └── style.css          # Modern academic UI stylesheet & notification bell
 │   └── js/
-│       └── main.js            # Chart.js visualizers & live calculation handlers
+│       └── main.js            # Chart.js visualizers, live notifications & session tracker
 │
 └── templates/
-    ├── base.html              # Layout shell with sidebar, topbar & flash alerts
+    ├── base.html              # Layout shell with sidebar, topbar & notification bell
     ├── login.html             # Dual-tab Admin / Student login portal
     ├── dashboard.html         # Faculty/Admin analytics dashboard with Chart.js
     ├── students.html          # Student directory & management table
@@ -72,7 +73,11 @@ examination-performance-analysis/
     ├── add_marks.html         # Add/edit marks with live auto-calculator preview
     ├── analytics.html         # Course statistics & 5-tier classification
     ├── predictions.html       # ML prediction portal with confidence meters
-    ├── student_dashboard.html # Personalized student portal with Radar chart
+    ├── student_dashboard.html # Personalized student portal with Radar chart & Study Planner widget
+    ├── study_planner.html     # AI Study Planner dashboard & weakness diagnostics
+    ├── study_preferences.html # Study schedule routine & Pomodoro settings
+    ├── study_schedule.html    # Full timetable explorer & interactive session tracker
+    ├── admin_study_plan.html  # Faculty compliance oversight & student study monitoring
     ├── profile.html           # Profile view and password change
     ├── report.html            # Report center & preview
     ├── 404.html               # 404 Not Found error page
@@ -97,6 +102,14 @@ examination-performance-analysis/
 * **Examination History**: Historical record across all terms.
 * **AI Academic Guidance**: Personalized recommendations tailored to weakest subjects and predicted tier.
 * **Direct Transcript Download**: One-click download of the official institutional PDF report.
+
+### 🧠 3. AI-Based Personalized Study Planner & Smart Reminder System (New Upgrade)
+* **Weak Subject Diagnostics**: Cross-exam analysis evaluating CIA 1, CIA 2, and Model exam trends to identify declining or sub-threshold courses and classify them by priority (Critical, High, Medium, Low).
+* **Adaptive Timetable Generation**: Priority-weighted scheduling engine allocating up to 3.5 hrs/week to weak subjects while maintaining proficiency across all enrolled subjects.
+* **Student Routine Customization**: Personalized preferences for available study days, preferred study hours (e.g. 18:00–22:00), Pomodoro focus duration (30/45/60 mins), and break intervals.
+* **Interactive Session Tracking**: Real-time status management (Scheduled, In Progress, Completed, Missed) with date/time rescheduling capabilities.
+* **Smart In-App Reminders & Notification Bell**: Live topbar notification bell with unread badge counter, popover alerts, and reminder scheduler.
+* **Faculty Monitoring View**: Dedicated compliance dashboard allowing faculty to track student study adherence rates, missed sessions, and weak subject recovery plans.
 
 ---
 

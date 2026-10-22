@@ -344,3 +344,188 @@ window.ExamCharts = {
     });
   }
 };
+
+/**
+ * ==============================================================================
+ * Study Planner & Notification System (Modules 4 & 5)
+ * ==============================================================================
+ */
+document.addEventListener('DOMContentLoaded', function () {
+  initNotificationBell();
+});
+
+function initNotificationBell() {
+  const bellBtn = document.getElementById('notificationBell');
+  const panel = document.getElementById('notificationPanel');
+  const markAllBtn = document.getElementById('markAllReadBtn');
+
+  if (!bellBtn || !panel) return;
+
+  // Toggle dropdown on click
+  bellBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const isOpen = panel.classList.contains('show');
+    if (!isOpen) {
+      loadNotifications();
+      panel.classList.add('show');
+    } else {
+      panel.classList.remove('show');
+    }
+  });
+
+  // Close when clicking outside
+  document.addEventListener('click', function (e) {
+    if (!panel.contains(e.target) && e.target !== bellBtn && !bellBtn.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  });
+
+  // Mark all as read
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      fetch('/api/notifications/read-all', { method: 'POST' })
+        .then(res => res.json())
+        .then(() => {
+          const badge = document.getElementById('notifBadge');
+          if (badge) badge.remove();
+          loadNotifications();
+        })
+        .catch(err => console.error(err));
+    });
+  }
+
+  // Periodic poll for unread notifications every 45s
+  setInterval(pollNotificationBadge, 45000);
+}
+
+function loadNotifications() {
+  const listEl = document.getElementById('notificationList');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+
+  fetch('/api/notifications')
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success' && data.notifications) {
+        renderNotificationList(data.notifications, data.unread_count);
+      } else {
+        listEl.innerHTML = '<div class="text-center text-muted py-4 small">No notifications found</div>';
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      listEl.innerHTML = '<div class="text-center text-danger py-4 small">Error loading notifications</div>';
+    });
+}
+
+function renderNotificationList(notifications, unreadCount) {
+  const listEl = document.getElementById('notificationList');
+  if (!listEl) return;
+
+  // Update badge
+  updateBadgeDisplay(unreadCount);
+
+  if (notifications.length === 0) {
+    listEl.innerHTML = `
+      <div class="text-center py-5 text-muted">
+        <i class="fa-regular fa-bell-slash fs-3 mb-2 opacity-50"></i>
+        <div class="small fw-semibold">No notifications right now</div>
+        <div class="text-xs text-muted" style="font-size: 0.72rem;">You are caught up with your study timetable!</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  notifications.forEach(n => {
+    const isUnread = n.is_read === 0;
+    const typeClass = n.notification_type === 'alert' ? 'alert' : 'reminder';
+    const iconClass = n.notification_type === 'alert' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-clock';
+
+    html += `
+      <div class="notification-item ${isUnread ? 'unread' : ''}" onclick="onNotificationClick(${n.id})">
+        <div class="notification-icon-box ${typeClass}">
+          <i class="${iconClass}"></i>
+        </div>
+        <div class="notification-item-content">
+          <div class="notification-item-title">${escapeHtml(n.title)}</div>
+          <div class="notification-item-msg">${escapeHtml(n.message)}</div>
+          <div class="notification-item-time">${escapeHtml(n.created_at || '')}</div>
+        </div>
+        ${isUnread ? '<span class="badge bg-primary rounded-pill p-1" style="font-size: 0.5rem;">•</span>' : ''}
+      </div>
+    `;
+  });
+
+  listEl.innerHTML = html;
+}
+
+function onNotificationClick(notifId) {
+  fetch(`/api/notifications/${notifId}/read`, { method: 'POST' })
+    .then(res => res.json())
+    .then(() => {
+      // Reload list and badge
+      loadNotifications();
+    })
+    .catch(err => console.error(err));
+}
+
+function pollNotificationBadge() {
+  fetch('/api/notifications')
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        updateBadgeDisplay(data.unread_count);
+      }
+    })
+    .catch(err => console.debug('Polling notification count skipped:', err));
+}
+
+function updateBadgeDisplay(count) {
+  const bellBtn = document.getElementById('notificationBell');
+  let badge = document.getElementById('notifBadge');
+
+  if (count > 0) {
+    if (!badge && bellBtn) {
+      badge = document.createElement('span');
+      badge.id = 'notifBadge';
+      badge.className = 'notification-badge';
+      bellBtn.appendChild(badge);
+    }
+    if (badge) badge.textContent = count;
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
+ * Universal study session status updater
+ */
+window.updateSessionStatus = function (sessionId, status) {
+  fetch(`/api/study-planner/session/${sessionId}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: status })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        window.location.reload();
+      } else {
+        alert(data.message || 'Error updating session status.');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Network error updating session.');
+    });
+};
+

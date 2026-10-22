@@ -63,6 +63,10 @@
                   <a href="{{ url_for('edit_student', student_id=s.id) }}" class="btn-action" title="Edit Student">
                     <i class="fa-solid fa-pen-to-square text-warning"></i>
                   </a>
+                  <!-- View Study Plan -->
+                  <a href="{{ url_for('admin_view_student_study_plan', student_id=s.id) }}" class="btn-action" title="View AI Study Plan & Compliance">
+                    <i class="fa-solid fa-calendar-check text-info"></i>
+                  </a>
                   <!-- Download Report -->
                   <a href="{{ url_for('download_report', student_id=s.id) }}" class="btn-action" title="Download Performance Report">
                     <i class="fa-solid fa-file-pdf text-danger"></i>

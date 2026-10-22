@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}My Study Timetable{% endblock %}
+{% block page_title %}Study Timetable & Session Tracker{% endblock %}
+{% block page_subtitle %}Explore your full personalized revision schedule, track completion milestones, and reschedule sessions{% endblock %}
+
+{% block content %}
+<!-- Top Controls & Actions Banner -->
+<div class="custom-card mb-4">
+  <div class="custom-card-body p-3">
+    <div class="row align-items-center g-3">
+      <div class="col-md-6">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-bold text-dark me-2"><i class="fa-solid fa-filter text-primary me-1"></i> View:</span>
+          <div class="btn-group" role="group">
+            <a href="{{ url_for('student_view_schedule', view='today') }}" class="btn btn-sm {% if current_view == 'today' %}btn-primary{% else %}btn-outline-primary{% endif %}">Today</a>
+            <a href="{{ url_for('student_view_schedule', view='week') }}" class="btn btn-sm {% if current_view == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Week</a>
+            <a href="{{ url_for('student_view_schedule', view='month') }}" class="btn btn-sm {% if current_view == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Month</a>
+            <a href="{{ url_for('student_view_schedule', view='all') }}" class="btn btn-sm {% if current_view == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All Sessions</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+          <form action="{{ url_for('student_generate_timetable') }}" method="POST" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-3">
+              <i class="fa-solid fa-arrows-rotate me-1"></i> Refresh Schedule
+            </button>
+          </form>
+          <a href="{{ url_for('student_study_preferences') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="fa-solid fa-sliders me-1"></i> Preferences
+          </a>
+          <a href="{{ url_for('student_study_planner') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="fa-solid fa-brain me-1"></i> Study Planner
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Progress Summary Strip -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-primary">
+      <small class="text-muted text-uppercase fw-bold">Total Sessions</small>
+      <h4 class="fw-bold mb-0 text-primary mt-1">{{ schedule|length }}</h4>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-success">
+      <small class="text-muted text-uppercase fw-bold">Completed</small>
+      {% set completed_count = schedule | selectattr('status', 'equalto', 'Completed') | list | length %}
+      <h4 class="fw-bold mb-0 text-success mt-1">{{ completed_count }}</h4>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-warning">
+      <small class="text-muted text-uppercase fw-bold">Scheduled</small>
+      {% set scheduled_count = schedule | selectattr('status', 'equalto', 'Scheduled') | list | length %}
+      <h4 class="fw-bold mb-0 text-warning mt-1">{{ scheduled_count }}</h4>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="custom-card p-3 border-start border-4 border-danger">
+      <small class="text-muted text-uppercase fw-bold">Missed</small>
+      {% set missed_count = schedule | selectattr('status', 'equalto', 'Missed') | list | length %}
+      <h4 class="fw-bold mb-0 text-danger mt-1">{{ missed_count }}</h4>
+    </div>
+  </div>
+</div>
+
+<!-- Sessions List Table Card -->
+<div class="custom-card">
+  <div class="custom-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h5 class="card-title mb-0">
+      <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Timetable Entries ({{ schedule|length }})
+    </h5>
+    
+    <div class="d-flex align-items-center gap-2">
+      <div class="input-group input-group-sm" style="width: 250px;">
+        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+        <input type="text" id="sessionSearchInput" class="form-control border-start-0" placeholder="Filter by subject or date...">
+      </div>
+    </div>
+  </div>
+
+  <div class="custom-card-body p-0">
+    {% if schedule %}
+      <div class="table-responsive">
+        <table class="table-custom" id="scheduleTable">
+          <thead>
+            <tr>
+              <th>Date & Day</th>
+              <th>Time</th>
+              <th>Subject</th>
+              <th>Target Activity</th>
+              <th class="text-center">Priority</th>
+              <th class="text-center">Status</th>
+              <th class="text-end pe-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in schedule %}
+              <tr>
+                <td>
+                  <strong class="text-dark">{{ s.scheduled_date }}</strong>
+                  <div class="text-muted small">{{ s.day_name or '' }}</div>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border font-monospace py-1 px-2">
+                    <i class="fa-regular fa-clock me-1 text-primary"></i> {{ s.start_time }} – {{ s.end_time }}
+                  </span>
+                </td>
+                <td>
+                  <div class="fw-bold text-primary">{{ s.subject_name }}</div>
+                </td>
+                <td>
+                  <span class="text-secondary small">{{ s.study_activity }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="badge {% if s.priority == 'High' %}bg-danger{% elif s.priority == 'Medium' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                    {{ s.priority }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <span class="badge {% if s.status == 'Completed' %}bg-success{% elif s.status == 'Missed' %}bg-danger{% else %}bg-secondary{% endif %}" id="status-badge-{{ s.id }}">
+                    {{ s.status }}
+                  </span>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="d-inline-flex gap-1">
+                    {% if s.status != 'Completed' %}
+                      <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" onclick="updateSessionStatus({{ s.id }}, 'Completed')" title="Mark Completed">
+                        <i class="fa-solid fa-check"></i>
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="updateSessionStatus({{ s.id }}, 'Scheduled')" title="Reopen">
+                        <i class="fa-solid fa-rotate-left"></i>
+                      </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openRescheduleModal({{ s.id }}, '{{ s.subject_name }}', '{{ s.scheduled_date }}', '{{ s.start_time }}')" title="Reschedule">
+                      <i class="fa-solid fa-calendar-plus"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="fa-regular fa-calendar-xmark fs-1 mb-3 opacity-50"></i>
+        <h6 class="fw-bold">No Sessions Found</h6>
+        <p class="small mb-3">No study sessions match your current view filter. Generate a new timetable or customize your available days.</p>
+        <form action="{{ url_for('student_generate_timetable') }}" method="POST" class="d-inline">
+          <button type="submit" class="btn btn-primary rounded-pill px-4">
+            <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Generate Timetable
+          </button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Reschedule Session Modal -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-primary">
+          <i class="fa-solid fa-calendar-plus me-2"></i> Reschedule Study Session
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-3">
+        <input type="hidden" id="rescheduleSessionId">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Subject</label>
+          <input type="text" id="rescheduleSubjectName" class="form-control" readonly disabled>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold small">New Date</label>
+            <input type="date" id="rescheduleNewDate" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">New Start Time</label>
+            <input type="time" id="rescheduleNewTime" class="form-control" required>
+          </div>
+        </div>
+        <div class="text-muted small">
+          <i class="fa-solid fa-circle-info me-1 text-primary"></i> The session will be shifted to the new date and start time with your standard session length.
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="submitReschedule()">Confirm Reschedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filter sessions table by search input
+document.getElementById('sessionSearchInput')?.addEventListener('input', function() {
+  const query = this.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#scheduleTable tbody tr');
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
+});
+
+function openRescheduleModal(id, name, curDate, curTime) {
+  document.getElementById('rescheduleSessionId').value = id;
+  document.getElementById('rescheduleSubjectName').value = name;
+  document.getElementById('rescheduleNewDate').value = curDate;
+  document.getElementById('rescheduleNewTime').value = curTime;
+  const modal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
+  modal.show();
+}
+
+function submitReschedule() {
+  const sessionId = document.getElementById('rescheduleSessionId').value;
+  const newDate = document.getElementById('rescheduleNewDate').value;
+  const newTime = document.getElementById('rescheduleNewTime').value;
+
+  if (!newDate || !newTime) {
+    alert("Please select both a new date and a new start time.");
+    return;
+  }
+
+  fetch(`/api/study-planner/session/${sessionId}/reschedule`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_date: newDate, new_start_time: newTime })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {
+      window.location.reload();
+    } else {
+      alert(data.message || 'Error rescheduling session.');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('An unexpected network error occurred.');
+  });
+}
+
+function updateSessionStatus(sessionId, status) {
+  fetch(`/api/study-planner/session/${sessionId}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: status })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {
+      window.location.reload();
+    } else {
+      alert(data.message || 'Failed to update session status.');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Error updating session status.');
+  });
+}
+</script>
+{% endblock %}

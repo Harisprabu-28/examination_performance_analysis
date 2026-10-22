@@ -101,6 +101,20 @@
           <span>Model Exam</span>
         </a>
 
+        <div class="menu-section">AI Study Planner</div>
+        <a href="{{ url_for('student_study_planner') }}" class="sidebar-link {% if active_page == 'study_planner' %}active{% endif %}">
+          <i class="fa-solid fa-calendar-check"></i>
+          <span>Study Planner</span>
+        </a>
+        <a href="{{ url_for('student_view_schedule') }}" class="sidebar-link {% if active_page == 'study_schedule' %}active{% endif %}">
+          <i class="fa-solid fa-clock"></i>
+          <span>My Timetable</span>
+        </a>
+        <a href="{{ url_for('student_study_preferences') }}" class="sidebar-link {% if active_page == 'study_preferences' %}active{% endif %}">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Preferences</span>
+        </a>
+
         <div class="menu-section">Analytics & Reports</div>
         <a href="{{ url_for('student_performance_page') }}" class="sidebar-link {% if active_page == 'student_performance' %}active{% endif %}">
           <i class="fa-solid fa-chart-radar"></i>
@@ -156,6 +170,29 @@
       </div>
 
       <div class="topbar-right">
+        {% if session.get('role') == 'student' %}
+        <!-- Notification Bell -->
+        <div class="notification-bell-wrapper" id="notificationBellWrapper">
+          <button class="btn-notification-bell" id="notificationBell" type="button" title="Notifications">
+            <i class="fa-solid fa-bell"></i>
+            {% if unread_notification_count > 0 %}
+            <span class="notification-badge" id="notifBadge">{{ unread_notification_count }}</span>
+            {% endif %}
+          </button>
+          <!-- Notification Dropdown Panel -->
+          <div class="notification-panel" id="notificationPanel">
+            <div class="notification-panel-header">
+              <h6 class="mb-0 fw-bold"><i class="fa-solid fa-bell me-1"></i> Notifications</h6>
+              <button class="btn btn-sm btn-link text-primary p-0" id="markAllReadBtn" title="Mark all as read">Mark all read</button>
+            </div>
+            <div class="notification-panel-body" id="notificationList">
+              <div class="text-center text-muted py-4">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <span class="badge bg-light text-dark border py-2 px-3 d-none d-md-inline-flex align-items-center gap-2">
           <i class="fa-solid fa-circle text-success" style="font-size: 0.5rem;"></i>
           System Online • ML Ready
