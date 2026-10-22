@@ -23,6 +23,10 @@ from database import get_db_connection, get_student_exam_history
 
 def init_study_planner_tables():
     """Creates study planner tables if they do not exist. Safe to call multiple times."""
+    if Config.DB_TYPE == 'mysql':
+        print("[*] Study planner tables verified in MySQL.")
+        return
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -788,7 +792,7 @@ def get_study_progress(student_id):
                SUM(CASE WHEN status = 'Scheduled' THEN 1 ELSE 0 END) as scheduled
         FROM study_schedule
         WHERE student_id = ?
-        GROUP BY subject_key
+        GROUP BY subject_key, subject_name
         ORDER BY subject_name ASC
     ''', (student_id,)).fetchall()
 

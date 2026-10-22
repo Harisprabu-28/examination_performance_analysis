@@ -3,13 +3,145 @@ import sqlite3
 from werkzeug.security import generate_password_hash
 from config import Config
 
+import re
+from decimal import Decimal
+
+def rewrite_mysql_query(query):
+    """Translates SQLite query syntax to MySQL 8.0 syntax."""
+    q = query.replace('?', '%s')
+    if re.search(r'\b(from|update|into|join)\s+students\b', q, re.I):
+        q = re.sub(r'\bstudents\.id\b', 'students.student_id', q, flags=re.I)
+        q = re.sub(r'(?<!student_)\bid\b', 'student_id', q, flags=re.I)
+    elif re.search(r'\b(from|update|into|join)\s+marks\b', q, re.I):
+        q = re.sub(r'\bmarks\.id\b', 'marks.mark_id', q, flags=re.I)
+        q = re.sub(r'(?<!mark_)\bid\b', 'mark_id', q, flags=re.I)
+    elif re.search(r'\b(from|update|into|join)\s+admins\b', q, re.I):
+        q = re.sub(r'\badmins\.id\b', 'admins.admin_id', q, flags=re.I)
+        q = re.sub(r'(?<!admin_)\bid\b', 'admin_id', q, flags=re.I)
+    return q
+
+class DbRow(dict):
+    """Dictionary-like row with attribute and alias fallback (id/student_id/mark_id/admin_id, name/student_name)."""
+    def __init__(self, mapping=None):
+        converted = {}
+        if mapping:
+            for k, v in mapping.items():
+                if isinstance(v, Decimal):
+                    converted[k] = float(v)
+                else:
+                    converted[k] = v
+        super().__init__(converted)
+
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        # Case insensitive check
+        key_lower = key.lower()
+        for k, v in self.items():
+            if k.lower() == key_lower:
+                return v
+        # Alias fallbacks using super().get() to prevent recursion
+        if key == 'id':
+            val = super().get('student_id') or super().get('mark_id') or super().get('admin_id')
+            if val is not None:
+                return val
+        if key in ('student_id', 'mark_id', 'admin_id'):
+            val = super().get('id')
+            if val is not None:
+                return val
+        if key == 'name':
+            val = super().get('student_name')
+            if val is not None:
+                return val
+        if key == 'student_name':
+            val = super().get('name')
+            if val is not None:
+                return val
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+class MySQLCursorWrapper:
+    def __init__(self, raw_cursor):
+        self.raw = raw_cursor
+
+    def execute(self, query, params=None):
+        q = rewrite_mysql_query(query)
+        if params is None:
+            return self.raw.execute(q)
+        return self.raw.execute(q, params)
+
+    def fetchone(self):
+        row = self.raw.fetchone()
+        return DbRow(row) if row else None
+
+    def fetchall(self):
+        rows = self.raw.fetchall()
+        return [DbRow(r) for r in rows] if rows else []
+
+    @property
+    def lastrowid(self):
+        return self.raw.lastrowid
+
+    @property
+    def rowcount(self):
+        return self.raw.rowcount
+
+    def close(self):
+        self.raw.close()
+
+class MySQLConnectionWrapper:
+    def __init__(self, raw_conn):
+        self.raw = raw_conn
+
+    def cursor(self):
+        return MySQLCursorWrapper(self.raw.cursor(dictionary=True))
+
+    def execute(self, query, params=None):
+        cur = self.cursor()
+        cur.execute(query, params)
+        return cur
+
+    def commit(self):
+        self.raw.commit()
+
+    def rollback(self):
+        self.raw.rollback()
+
+    def close(self):
+        self.raw.close()
+
 def get_db_connection():
-    """Returns a SQLite connection with Row row_factory for dict-like access."""
+    """Returns a database connection with dict-like Row access for MySQL or SQLite."""
     os.makedirs(Config.DB_DIR, exist_ok=True)
     os.makedirs(Config.REPORTS_DIR, exist_ok=True)
     os.makedirs(Config.UPLOAD_DIR, exist_ok=True)
     os.makedirs(Config.ML_DIR, exist_ok=True)
-    
+
+    if Config.DB_TYPE == 'mysql':
+        try:
+            import mysql.connector
+            raw_conn = mysql.connector.connect(
+                host=Config.MYSQL_HOST,
+                port=Config.MYSQL_PORT,
+                user=Config.MYSQL_USER,
+                password=Config.MYSQL_PASSWORD,
+                database=Config.MYSQL_DB
+            )
+            try:
+                cur = raw_conn.cursor()
+                cur.execute("SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'")
+                cur.close()
+            except Exception:
+                pass
+            return MySQLConnectionWrapper(raw_conn)
+        except Exception as e:
+            print(f"[!] Warning: Failed to connect to MySQL ({e}). Falling back to SQLite.")
+
     conn = sqlite3.connect(Config.DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -49,6 +181,20 @@ def calculate_exam_metrics(math, eng, sci, cs, db, web):
 
 def init_db():
     """Creates tables if they do not exist and seeds initial demo data."""
+    if Config.DB_TYPE == 'mysql':
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as c FROM admins")
+        res = cursor.fetchone()
+        if res and res['c'] == 0:
+            cursor.execute(
+                "INSERT INTO admins (username, full_name, password_hash) VALUES (?, ?, ?)",
+                (Config.DEFAULT_ADMIN_USERNAME, 'System Administrator', generate_password_hash(Config.DEFAULT_ADMIN_PASSWORD))
+            )
+            conn.commit()
+        conn.close()
+        return
+
     conn = get_db_connection()
     cursor = conn.cursor()
     

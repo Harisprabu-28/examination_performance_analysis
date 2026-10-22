@@ -52,9 +52,13 @@ def find_dataset_file():
     return None
 
 def import_excel_dataset():
-    """Imports 123 student records and marks from Excel into SQLite database."""
+    """Imports 123 student records and marks from Excel into configured database (MySQL or SQLite)."""
+    if Config.DB_TYPE == 'mysql':
+        from import_mysql_dataset import import_mysql_dataset
+        return import_mysql_dataset()
+
     print("=" * 65)
-    print("REAL CLASS STUDENT DATASET IMPORT PROCESS")
+    print("REAL CLASS STUDENT DATASET IMPORT PROCESS (SQLite)")
     print("=" * 65)
     
     excel_path = find_dataset_file()

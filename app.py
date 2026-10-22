@@ -235,7 +235,7 @@ def get_dashboard_data(exam_type='CIA1'):
         SELECT exam_type, AVG(percentage) as avg_p, MAX(percentage) as max_p
         FROM marks
         GROUP BY exam_type
-        ORDER BY id ASC
+        ORDER BY exam_type ASC
     """).fetchall()
     
     trend_labels = [Config.EXAM_LABELS.get(t['exam_type'], t['exam_type']) for t in trends]
