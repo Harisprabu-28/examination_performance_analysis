@@ -6,6 +6,48 @@ from config import Config
 import re
 from decimal import Decimal
 
+# ==============================================================================
+# Module-level MySQL Connection Pool & Directory Initialization
+# ==============================================================================
+
+_mysql_pool = None
+_dirs_initialized = False
+
+
+def _get_mysql_pool():
+    """Lazily creates and returns a MySQL connection pool (singleton)."""
+    global _mysql_pool
+    if _mysql_pool is None:
+        try:
+            import mysql.connector.pooling
+            _mysql_pool = mysql.connector.pooling.MySQLConnectionPool(
+                pool_name="exam_analysis_pool",
+                pool_size=10,
+                pool_reset_session=True,
+                host=Config.MYSQL_HOST,
+                port=Config.MYSQL_PORT,
+                user=Config.MYSQL_USER,
+                password=Config.MYSQL_PASSWORD,
+                database=Config.MYSQL_DB
+            )
+            print("[*] MySQL connection pool created (pool_size=10).")
+        except Exception as e:
+            print(f"[!] Warning: Failed to create MySQL connection pool ({e}).")
+            _mysql_pool = None
+    return _mysql_pool
+
+
+def ensure_dirs():
+    """Creates required directories once. Safe to call multiple times."""
+    global _dirs_initialized
+    if _dirs_initialized:
+        return
+    os.makedirs(Config.DB_DIR, exist_ok=True)
+    os.makedirs(Config.REPORTS_DIR, exist_ok=True)
+    os.makedirs(Config.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(Config.ML_DIR, exist_ok=True)
+    _dirs_initialized = True
+
 def rewrite_mysql_query(query):
     """Translates SQLite query syntax to MySQL 8.0 syntax."""
     q = query.replace('?', '%s')
@@ -116,13 +158,27 @@ class MySQLConnectionWrapper:
         self.raw.close()
 
 def get_db_connection():
-    """Returns a database connection with dict-like Row access for MySQL or SQLite."""
-    os.makedirs(Config.DB_DIR, exist_ok=True)
-    os.makedirs(Config.REPORTS_DIR, exist_ok=True)
-    os.makedirs(Config.UPLOAD_DIR, exist_ok=True)
-    os.makedirs(Config.ML_DIR, exist_ok=True)
+    """Returns a database connection with dict-like Row access for MySQL or SQLite.
+    Uses connection pooling for MySQL to avoid per-request TCP handshake overhead."""
+    ensure_dirs()
 
     if Config.DB_TYPE == 'mysql':
+        # Try pooled connection first
+        pool = _get_mysql_pool()
+        if pool is not None:
+            try:
+                raw_conn = pool.get_connection()
+                try:
+                    cur = raw_conn.cursor()
+                    cur.execute("SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'")
+                    cur.close()
+                except Exception:
+                    pass
+                return MySQLConnectionWrapper(raw_conn)
+            except Exception as e:
+                print(f"[!] Warning: Pool connection failed ({e}). Trying direct connection.")
+
+        # Fallback to direct connection if pool unavailable
         try:
             import mysql.connector
             raw_conn = mysql.connector.connect(
@@ -315,12 +371,14 @@ def get_student_exam_history(student_id):
         history['all'].append(dict(r))
     return history
 
-def calculate_student_trend(student_id):
+def calculate_student_trend(student_id, history=None):
     """
     Calculates student performance trend across available exams (CIA 1 -> CIA 2 -> MODEL).
     Returns trend status: 'Improving', 'Stable', or 'Declining'.
+    Accepts optional pre-fetched history to avoid redundant DB queries.
     """
-    history = get_student_exam_history(student_id)
+    if history is None:
+        history = get_student_exam_history(student_id)
     available_scores = []
     
     for e_type in ['CIA1', 'CIA2', 'MODEL']:
@@ -669,16 +727,39 @@ def get_weak_students(exam_type=None):
     2. Failing result or subject score < 40 in exam
     3. Declining performance trend from CIA 1 to CIA 2 / MODEL
     If exam_type is specified ('CIA1', 'CIA2', 'MODEL'), evaluates performance for that selected exam.
+    
+    Optimized: Uses only 2 DB queries (all students + all marks) instead of N+1 per student.
     """
     conn = get_db_connection()
     students = conn.execute("SELECT * FROM students ORDER BY LOWER(name) ASC").fetchall()
+    all_marks = conn.execute("SELECT * FROM marks ORDER BY id ASC").fetchall()
     conn.close()
+    
+    # Pre-build per-student exam history in memory (replaces N individual queries)
+    marks_by_student = {}
+    for m in all_marks:
+        sid = m['student_id']
+        if sid not in marks_by_student:
+            marks_by_student[sid] = []
+        marks_by_student[sid].append(dict(m))
+    
+    def _build_history(student_id):
+        """Builds exam history dict from pre-fetched marks (no DB call)."""
+        records = marks_by_student.get(student_id, [])
+        history = {'CIA1': None, 'CIA2': None, 'MODEL': None, 'all': []}
+        for r in records:
+            e_type = r.get('exam_type') or 'CIA1'
+            if e_type in history and history[e_type] is None:
+                history[e_type] = r
+            history['all'].append(r)
+        return history
     
     weak_list = []
     for s in students:
         s_id = s['id']
-        history = get_student_exam_history(s_id)
-        trend_info = calculate_student_trend(s_id)
+        history = _build_history(s_id)
+        # Pass pre-built history to avoid redundant DB call
+        trend_info = calculate_student_trend(s_id, history=history)
         
         if exam_type:
             target_exam = history.get(exam_type.upper())
